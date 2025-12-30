@@ -1,3 +1,4 @@
+// src/components/Savings.tsx
 import React, { useEffect, useState, useCallback } from "react";
 import {
     StyleSheet,
@@ -9,12 +10,12 @@ import {
     RefreshControl,
 } from "react-native";
 import { useSavingsStore } from "@/store/savingsStore";
+import { useTransactionStore } from "@/store/transactionStore";
+import { useAuthStore } from "@/store/authStore";
 import CreateSavingModal from "@/src/components/SavingsModal";
 import { DepositModal } from "./SavingsDepositModal";
 
-// ------------------------------
-// Section Header
-// ------------------------------
+// Section header
 const SectionHeader = ({ title, actionLabel, onAction }: any) => (
     <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
@@ -24,9 +25,7 @@ const SectionHeader = ({ title, actionLabel, onAction }: any) => (
     </View>
 );
 
-// ------------------------------
-// Saving Card
-// ------------------------------
+// Saving card
 const SavingCard = ({ item, onAction }: any) => {
     if (!item) return null;
 
@@ -36,35 +35,45 @@ const SavingCard = ({ item, onAction }: any) => {
 
     return (
         <View style={styles.card}>
-            <View style={styles.titleContainer}>
-                <Text style={styles.cardTitle}>{item.title}</Text>
-                <View style={styles.statusContainer}>
+            {/* Header: title & status */}
+            <View style={styles.cardHeader}>
+                <Text style={styles.cardTitle} numberOfLines={1}>
+                    {item.title}
+                </Text>
+                <View
+                    style={[
+                        styles.statusContainer,
+                        item.status === "completed"
+                            ? styles.statusCompleted
+                            : styles.statusActive,
+                    ]}
+                >
                     <Text style={styles.status}>{item.status.toUpperCase()}</Text>
                 </View>
             </View>
 
-            <View style={styles.progressContainer}>
-                <View style={styles.progressBarBackground}>
+            {/* Progress bar */}
+            <View style={styles.progressWrapper}>
+                <View style={styles.progressBackground}>
                     <View
-                        style={[styles.progressBarFill, { width: `${progress * 100}%` }]}
+                        style={[styles.progressFill, { width: `${progress * 100}%` }]}
                     />
                 </View>
-                <View style={styles.amountsRow}>
-                    <Text style={styles.amountText}>Ksh {current}</Text>
-                    <Text style={styles.amountText}>Ksh {target}</Text>
-                </View>
+                <Text style={styles.progressText}>
+                    {`${current.toLocaleString()} / ${target.toLocaleString()}`}
+                </Text>
             </View>
 
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+            {/* Action buttons */}
+            <View style={styles.actionRow}>
                 <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: "green" }]}
+                    style={[styles.actionBtn, { backgroundColor: "#4CAF50" }]}
                     onPress={() => onAction(item._id, "deposit")}
                 >
                     <Text style={styles.actionText}>Deposit</Text>
                 </TouchableOpacity>
-
                 <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: "orange" }]}
+                    style={[styles.actionBtn, { backgroundColor: "#FF9800" }]}
                     onPress={() => onAction(item._id, "withdraw")}
                 >
                     <Text style={styles.actionText}>Withdraw</Text>
@@ -74,12 +83,19 @@ const SavingCard = ({ item, onAction }: any) => {
     );
 };
 
-// ------------------------------
 // Main Savings Component
-// ------------------------------
 const Savings = () => {
-    const { savings, fetchSavings, createSaving, depositToSaving, withdrawFromSaving, loading, error } =
-        useSavingsStore();
+    const {
+        savings,
+        fetchSavings,
+        createSaving,
+        depositToSaving,
+        withdrawFromSaving,
+        loading,
+        error,
+    } = useSavingsStore();
+    const { user } = useAuthStore();
+    const { getDashboard, getTransactions } = useTransactionStore();
 
     const [modalVisible, setModalVisible] = useState(false);
     const [depositModalVisible, setDepositModalVisible] = useState(false);
@@ -90,18 +106,25 @@ const Savings = () => {
 
     useEffect(() => {
         fetchSavings();
-    }, [fetchSavings]);
+        getDashboard(new Date().getMonth() + 1, new Date().getFullYear());
+        getTransactions();
+    }, [fetchSavings, getDashboard]);
 
-    const handleCreateSaving = useCallback(async (newSaving: any) => {
-        try {
-            await createSaving(newSaving);
-        } catch (err: any) {
-            console.log("Savings Error", err.message);
-        }
-    }, [createSaving]);
+    const handleCreateSaving = useCallback(
+        async (newSaving: any) => {
+            try {
+                await createSaving(newSaving);
+                fetchSavings();
+            } catch (err: any) {
+                console.log("Savings Error", err.message);
+            }
+        },
+        [createSaving, fetchSavings]
+    );
 
     const handleDepositWithdraw = useCallback(async () => {
-        if (!selectedSavingId) return;
+        if (!selectedSavingId || !user) return;
+
         const amount = parseFloat(depositAmount);
         if (isNaN(amount) || amount <= 0) {
             alert("Enter a valid amount");
@@ -110,16 +133,29 @@ const Savings = () => {
 
         try {
             if (depositType === "deposit") {
-                await depositToSaving(selectedSavingId, amount);
+                await depositToSaving(selectedSavingId, { userId: user._id, amount });
             } else {
-                await withdrawFromSaving(selectedSavingId, amount);
+                await withdrawFromSaving(selectedSavingId, { userId: user._id, amount });
             }
+
             setDepositModalVisible(false);
             setDepositAmount("");
+            fetchSavings();
+            await getDashboard(new Date().getMonth() + 1, new Date().getFullYear());
         } catch (err: any) {
             console.log("Error", err.message);
+            alert(err.message || "An error occurred");
         }
-    }, [selectedSavingId, depositAmount, depositType, depositToSaving, withdrawFromSaving]);
+    }, [
+        selectedSavingId,
+        depositAmount,
+        depositType,
+        user,
+        depositToSaving,
+        withdrawFromSaving,
+        fetchSavings,
+        getDashboard,
+    ]);
 
     const openDepositModal = (id: string, type: "deposit" | "withdraw") => {
         setSelectedSavingId(id);
@@ -137,24 +173,20 @@ const Savings = () => {
                 onAction={() => setModalVisible(true)}
             />
 
-            {loading && <ActivityIndicator size="large" color="green" style={{ marginTop: 20 }} />}
+            {loading && <ActivityIndicator size="large" color="#4CAF50" style={{ marginTop: 20 }} />}
             {error && <Text style={styles.error}>{error}</Text>}
 
             <FlatList
                 data={displayedSavings}
                 keyExtractor={(item) => item?._id ?? Math.random().toString()}
-                renderItem={({ item }) => (
-                    <SavingCard item={item} onAction={openDepositModal} />
-                )}
+                renderItem={({ item }) => <SavingCard item={item} onAction={openDepositModal} />}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.horizontalList}
                 ListEmptyComponent={() =>
                     !loading ? <Text style={styles.empty}>No savings yet. Create one!</Text> : null
                 }
-                refreshControl={
-                    <RefreshControl refreshing={loading} onRefresh={fetchSavings} />
-                }
+                refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchSavings} />}
             />
 
             {savings.length > 2 && (
@@ -162,9 +194,7 @@ const Savings = () => {
                     style={styles.viewAllBtn}
                     onPress={() => setShowAll(!showAll)}
                 >
-                    <Text style={styles.viewAllText}>
-                        {showAll ? "Show Less" : "View All"}
-                    </Text>
+                    <Text style={styles.viewAllText}>{showAll ? "Show Less" : "View All"}</Text>
                 </TouchableOpacity>
             )}
 
@@ -180,6 +210,7 @@ const Savings = () => {
                 setAmount={setDepositAmount}
                 onClose={() => setDepositModalVisible(false)}
                 onDeposit={handleDepositWithdraw}
+                type={depositType}
             />
         </View>
     );
@@ -187,47 +218,50 @@ const Savings = () => {
 
 export default Savings;
 
-// ------------------------------
+// --------------------
 // Styles
-// ------------------------------
+// --------------------
 const styles = StyleSheet.create({
-    container: { flex: 1, padding: 12, backgroundColor: "#fff" },
-    header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
-    title: { fontSize: 18, fontWeight: "800", color: "#0e0057" },
-    link: { fontSize: 15, color: "#007bff", fontWeight: "600" },
-    horizontalList: { paddingVertical: 10, gap: 10 },
-    titleContainer: { flexDirection: "row", justifyContent: "space-between" },
+    container: { flex: 1, padding: 12, backgroundColor: "#f6f6f6" },
+
+    header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
+    title: { fontSize: 20, fontWeight: "700", color: "#1E1E1E" },
+    link: { fontSize: 14, color: "#007bff", fontWeight: "600" },
+
+    horizontalList: { paddingVertical: 8, gap: 10 },
+
     card: {
-        backgroundColor: "#f9f9f9",
-        padding: 10,
-        borderRadius: 12,
-        marginBottom: 14,
-        width: 200,
-        elevation: 2,
+        backgroundColor: "#fff",
+        borderRadius: 14,
+        padding: 12,
+        marginBottom: 12,
+        width: 165,
         shadowColor: "#000",
-        shadowOpacity: 0.1,
-        shadowRadius: 6,
+        shadowOpacity: 0.05,
+        shadowRadius: 8,
         shadowOffset: { width: 0, height: 2 },
+        elevation: 3,
     },
-    cardTitle: { fontSize: 16, fontWeight: "800", marginBottom: 6 },
-    statusContainer: {
-        backgroundColor: "#007bff",
-        paddingHorizontal: 5,
-        paddingVertical: 1,
-        borderBottomLeftRadius: 12,
-        borderTopLeftRadius: 12,
-        justifyContent: "center",
-    },
-    status: { color: "#fff", fontWeight: "500", fontSize: 10 },
-    progressContainer: { marginVertical: 8 },
-    progressBarBackground: { height: 10, borderRadius: 5, backgroundColor: "#e0e0e0", overflow: "hidden" },
-    progressBarFill: { height: "100%", backgroundColor: "green", borderRadius: 5 },
-    amountsRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
-    amountText: { color: "#797373ff", fontSize: 12, fontWeight: "600" },
-    actionBtn: { marginTop: 10, padding: 8, borderRadius: 8, flex: 1, marginHorizontal: 3 },
-    actionText: { color: "#fff", textAlign: "center", fontWeight: "600" },
+
+    cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
+    cardTitle: { fontSize: 15, fontWeight: "700", flex: 1, marginRight: 6 },
+    statusContainer: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 },
+    statusActive: { backgroundColor: "#4CAF50" },
+    statusCompleted: { backgroundColor: "#2196F3" },
+    status: { fontSize: 10, fontWeight: "600", color: "#fff" },
+
+    progressWrapper: { marginBottom: 10 },
+    progressBackground: { height: 6, backgroundColor: "#E0E0E0", borderRadius: 3, overflow: "hidden" },
+    progressFill: { height: "100%", backgroundColor: "#4CAF50", borderRadius: 3 },
+    progressText: { fontSize: 10, color: "#555", marginTop: 4, textAlign: "right" },
+
+    actionRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
+    actionBtn: { flex: 1, marginHorizontal: 2, paddingVertical: 6, borderRadius: 8 },
+    actionText: { textAlign: "center", color: "#fff", fontWeight: "600", fontSize: 12 },
+
     viewAllBtn: { alignSelf: "center", marginTop: 8 },
-    viewAllText: { color: "#3588d6ff", fontWeight: "600" },
-    empty: { textAlign: "center", color: "gray", fontSize: 16, marginTop: 30 },
+    viewAllText: { color: "#007bff", fontWeight: "600" },
+
+    empty: { textAlign: "center", color: "#999", fontSize: 14, marginTop: 20 },
     error: { color: "red", textAlign: "center", marginBottom: 10 },
 });

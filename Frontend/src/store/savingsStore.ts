@@ -10,8 +10,8 @@ export interface Saving {
     description?: string;
     targetAmount: number;
     currentAmount: number;
-    startDate:Date,
-    endDate?:Date,
+    startDate: Date;
+    endDate?: Date;
     durationMonths?: number;
     status: string;
     createdAt: string;
@@ -28,8 +28,8 @@ interface SavingsState {
     createSaving: (savingData: Partial<Saving>) => Promise<void>;
     updateSaving: (id: string, savingData: Partial<Saving>) => Promise<void>;
     deleteSaving: (id: string) => Promise<void>;
-    depositToSaving: (id: string, amount: number) => Promise<void>;
-    withdrawFromSaving: (id: string, amount: number) => Promise<void>;
+    depositToSaving: (id: string, payload: { userId: string; amount: number }) => Promise<void>;
+    withdrawFromSaving: (id: string, payload: { userId: string; amount: number }) => Promise<void>;
 }
 
 const API_URL = "http://192.168.0.24:5000/api/savings";
@@ -58,10 +58,9 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
             if (!currentUser) throw new Error("Not authenticated");
 
             const token = await getIdToken(currentUser);
-
             const res = await fetch(`${API_URL}?userId=${currentUser.uid}`, {
                 method: "GET",
-                headers: { 
+                headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
@@ -75,7 +74,6 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
             set({ error: err.message, loading: false });
         }
     },
-
 
     getSavingById: (id) => get().savings.find((s) => s._id === id),
 
@@ -110,16 +108,11 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
 
     updateSaving: async (id, savingData) => {
         try {
-            const currentUser = auth.currentUser;
-            if (!currentUser) throw new Error("Not authenticated");
-
-            const token = await getIdToken(currentUser);
-
             const headers = await getAuthHeaders();
             const res = await fetch(`${API_URL}/${id}`, {
                 method: "PUT",
                 headers,
-                body: JSON.stringify({...savingData, userId: currentUser.uid,}),
+                body: JSON.stringify(savingData),
             });
             const data = await res.json();
             set((state) => ({
@@ -142,13 +135,13 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         }
     },
 
-    depositToSaving: async (id, amount) => {
+    depositToSaving: async (id, payload) => {
         try {
             const headers = await getAuthHeaders();
             const res = await fetch(`${API_URL}/${id}/deposit`, {
                 method: "POST",
                 headers,
-                body: JSON.stringify({ amount }),
+                body: JSON.stringify(payload), // payload = { userId, amount }
             });
             const data = await res.json();
             set((state) => ({
@@ -159,13 +152,13 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         }
     },
 
-    withdrawFromSaving: async (id, amount) => {
+    withdrawFromSaving: async (id, payload) => {
         try {
             const headers = await getAuthHeaders();
             const res = await fetch(`${API_URL}/${id}/withdraw`, {
                 method: "POST",
                 headers,
-                body: JSON.stringify({ amount }),
+                body: JSON.stringify(payload), // payload = { userId, amount }
             });
             const data = await res.json();
             set((state) => ({

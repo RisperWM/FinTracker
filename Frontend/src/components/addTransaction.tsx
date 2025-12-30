@@ -6,8 +6,8 @@ import { useTransactionStore } from "@/store/transactionStore";
 
 type Props = { visible: boolean; onClose: () => void; };
 
-const incomeCategories = ["Salary", "Freelance", "Business", "Investments", "Allowance", "Other Income"];
-const expenseCategories = ["Food & Dining", "Housing & Utilities", "Transportation", "Shopping", "Bills & Subscriptions", "Health & Wellness", "Entertainment", "Education", "Miscellaneous", "Friends & Family", "Loan"];
+export const incomeCategories = ["Salary", "Freelance", "Business", "Investments", "Allowance", "Other Income"];
+export const expenseCategories = ["Food & Dining", "Housing & Utilities", "Transportation", "Shopping", "Bills & Subscriptions", "Health & Wellness", "Entertainment", "Education", "Miscellaneous", "Friends & Family", "Loan"];
 
 export const AddTransactionPopup: React.FC<Props> = ({ visible, onClose }) => {
     const addTransaction = useTransactionStore((state) => state.addTransaction);

@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { View, Text, TouchableOpacity, TextInput, Alert } from "react-native";
+import { useState, useEffect } from "react";
+import { View, Text, TouchableOpacity, Alert, Image, StyleSheet } from "react-native";
 import { verifyPin } from "@/security/pin";
 import { usePinStore } from "@/store/pinStore";
 import { handleFailedAttempt, resetAttempts, isLockedOut } from "@/security/lockout";
@@ -12,8 +12,18 @@ export default function UnlockScreen() {
     const [error, setError] = useState("");
     const { unlock } = usePinStore();
 
+    // 🔹 Auto-submission logic
+    useEffect(() => {
+        if (pin.length === 4) {
+            handleUnlock();
+        }
+    }, [pin]);
+
     const handleNumberPress = (num: string) => {
-        if (pin.length < 4) setPin(pin + num);
+        if (pin.length < 4) {
+            setError(""); // Reset error when user starts typing again
+            setPin(pin + num);
+        }
     };
 
     const handleBackspace = () => {
@@ -39,7 +49,6 @@ export default function UnlockScreen() {
         }
     };
 
-
     const renderDots = (length: number) => {
         const dots = [];
         for (let i = 0; i < 4; i++) {
@@ -57,23 +66,36 @@ export default function UnlockScreen() {
             );
         }
         return (
-            <View style={{ flexDirection: "row", justifyContent: "center", marginBottom: 20 }}>
+            <View style={{ flexDirection: "row", justifyContent: "center", marginBottom: 10 }}>
                 {dots}
             </View>
         );
     };
 
     return (
-        <View style={{ flex: 1, backgroundColor: "#f9f9f9", justifyContent: "center", padding: 20 }}>
-            <View style={{ backgroundColor: "#fff", borderRadius: 15, padding: 20, alignItems: "center" }}>
-                <Text style={{ fontSize: 20, fontWeight: "600", marginBottom: 10 }}>Enter Your PIN</Text>
-                <Text style={{ fontSize: 14, color: "gray", marginBottom: 20 }}>Secure your account</Text>
+        <View style={{ flex: 1, backgroundColor: "#f9f9f9", justifyContent:"center", padding: 30 }}>
+            {/* 🔹 Logo added here */}
+            <View style={{ alignItems: "center", }}>
+                <Image
+                    source={require("@/assets/images/icon.png")}
+                    style={{ width: 120, height: 120 }}
+                    resizeMode="contain"
+                />
+            </View>
+
+            <View style={{ backgroundColor: "#f9f9f9", paddingVertical: 5, alignItems: "center" }}>
+                <Text style={{ fontSize: 20, fontWeight: "600", marginBottom: 10 }}>Welcome Back</Text>
+                <Text style={{ fontSize: 14, color: "gray", marginBottom: 20 }}>Enter your pin</Text>
 
                 {renderDots(pin.length)}
-                {error ? <Text style={{ color: "red", marginBottom: 10 }}>{error}</Text> : null}
+
+                {/* 🔹 Stable error container */}
+                <View style={{ height: 25 }}>
+                    {error ? <Text style={{ color: "red", fontSize: 13 }}>{error}</Text> : null}
+                </View>
 
                 {/* Numeric keypad */}
-                <View style={{ width: "100%", flexWrap: "wrap", flexDirection: "row", justifyContent: "center" }}>
+                <View style={{ width: "100%", flexWrap: "wrap", flexDirection: "row", justifyContent: "center", marginTop: 10 }}>
                     {NUMBERS.map((num) => (
                         <TouchableOpacity
                             key={num}
@@ -100,28 +122,15 @@ export default function UnlockScreen() {
                             height: 60,
                             margin: 8,
                             borderRadius: 30,
-                            backgroundColor: "#ccc",
+                            backgroundColor: "#0e0057",
                             justifyContent: "center",
                             alignItems: "center",
+                            
                         }}
                     >
-                        <Text style={{ fontSize: 20 }}>⌫</Text>
+                        <Text style={{ fontSize: 20, color: "#fff", }}>⌫</Text>
                     </TouchableOpacity>
                 </View>
-
-                {/* Submit button */}
-                <TouchableOpacity
-                    onPress={handleUnlock}
-                    style={{
-                        marginTop: 20,
-                        backgroundColor: "#0e0057",
-                        paddingVertical: 12,
-                        paddingHorizontal: 50,
-                        borderRadius: 20,
-                    }}
-                >
-                    <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 16 }}>Submit</Text>
-                </TouchableOpacity>
             </View>
         </View>
     );

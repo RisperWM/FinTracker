@@ -1,6 +1,6 @@
-import { useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
-import { setPin as savePin } from "@/security/pin"; // renamed to avoid conflict
+import { useState, useEffect } from "react";
+import { View, Text, TouchableOpacity, Image } from "react-native";
+import { setPin as savePin } from "@/security/pin";
 import { usePinStore } from "@/store/pinStore";
 import { router } from "expo-router";
 
@@ -14,7 +14,18 @@ export default function CreatePinScreen() {
 
     const { checkPinExists, unlock } = usePinStore();
 
+    // 🔹 Auto-advance logic
+    useEffect(() => {
+        if (step === "enter" && pin.length === 4) {
+            setStep("confirm");
+            setError("");
+        } else if (step === "confirm" && confirmPin.length === 4) {
+            handleSave();
+        }
+    }, [pin, confirmPin]);
+
     const handleNumberPress = (num: string) => {
+        setError(""); // Clear error on type
         if (step === "enter" && pin.length < 4) setPinState(pin + num);
         if (step === "confirm" && confirmPin.length < 4) setConfirmPin(confirmPin + num);
     };
@@ -24,27 +35,17 @@ export default function CreatePinScreen() {
         if (step === "confirm") setConfirmPin(confirmPin.slice(0, -1));
     };
 
-    const handleNext = async () => {
-        if (step === "enter") {
-            if (pin.length !== 4) {
-                setError("PIN must be 4 digits");
-                return;
-            }
-            setStep("confirm");
-            setError("");
-        } else if (step === "confirm") {
-            if (confirmPin !== pin) {
-                setError("PINs do not match");
-                setConfirmPin("");
-                return;
-            }
-
-            // ✅ Save PIN correctly
-            await savePin(pin);
-            await checkPinExists();
-            unlock();
-            router.replace("/");
+    const handleSave = async () => {
+        if (confirmPin !== pin) {
+            setError("PINs do not match");
+            setConfirmPin("");
+            return;
         }
+
+        await savePin(pin);
+        await checkPinExists();
+        unlock();
+        router.replace("/");
     };
 
     const renderDots = (length: number) => {
@@ -63,24 +64,41 @@ export default function CreatePinScreen() {
                 />
             );
         }
-        return <View style={{ flexDirection: "row", justifyContent: "center", marginBottom: 20 }}>{dots}</View>;
+        return (
+            <View style={{ flexDirection: "row", justifyContent: "center", marginBottom: 10 }}>
+                {dots}
+            </View>
+        );
     };
 
     return (
-        <View style={{ flex: 1, backgroundColor: "#f9f9f9", justifyContent: "center", padding: 20 }}>
-            <View style={{ backgroundColor: "#fff", borderRadius: 15, padding: 20, alignItems: "center" }}>
+        <View style={{ flex: 1, backgroundColor: "#f9f9f9", justifyContent: "center", padding: 30 }}>
+            {/* 🔹 Matching UnlockScreen Logo */}
+            <View style={{ alignItems: "center" }}>
+                <Image
+                    source={require("@/assets/images/icon.png")}
+                    style={{ width: 120, height: 120 }}
+                    resizeMode="contain"
+                />
+            </View>
+
+            <View style={{ backgroundColor: "#f9f9f9", paddingVertical: 5, alignItems: "center" }}>
                 <Text style={{ fontSize: 20, fontWeight: "600", marginBottom: 10 }}>
-                    {step === "enter" ? "Enter a PIN" : "Confirm PIN"}
+                    {step === "enter" ? "Create a PIN" : "Confirm PIN"}
                 </Text>
                 <Text style={{ fontSize: 14, color: "gray", marginBottom: 20 }}>
-                    {step === "enter" ? "Create a 4-digit PIN" : "Confirm your PIN"}
+                    {step === "enter" ? "Enter a 4-digit PIN" : "Enter your PIN again"}
                 </Text>
 
                 {renderDots(step === "enter" ? pin.length : confirmPin.length)}
-                {error ? <Text style={{ color: "red", marginBottom: 10 }}>{error}</Text> : null}
 
-                {/* Numeric keypad */}
-                <View style={{ width: "100%", flexWrap: "wrap", flexDirection: "row", justifyContent: "center" }}>
+                {/* 🔹 Matching Stable Error Container */}
+                <View style={{ height: 25 }}>
+                    {error ? <Text style={{ color: "red", fontSize: 13 }}>{error}</Text> : null}
+                </View>
+
+                {/* Numeric Keypad */}
+                <View style={{ width: "100%", flexWrap: "wrap", flexDirection: "row", justifyContent: "center", marginTop: 10 }}>
                     {NUMBERS.map((num) => (
                         <TouchableOpacity
                             key={num}
@@ -99,7 +117,7 @@ export default function CreatePinScreen() {
                         </TouchableOpacity>
                     ))}
 
-                    {/* Backspace button */}
+                    {/* 🔹 Matching Dark Blue Backspace */}
                     <TouchableOpacity
                         onPress={handleBackspace}
                         style={{
@@ -107,30 +125,24 @@ export default function CreatePinScreen() {
                             height: 60,
                             margin: 8,
                             borderRadius: 30,
-                            backgroundColor: "#ccc",
+                            backgroundColor: "#0e0057",
                             justifyContent: "center",
                             alignItems: "center",
                         }}
                     >
-                        <Text style={{ fontSize: 20 }}>⌫</Text>
+                        <Text style={{ fontSize: 20, color: "#fff" }}>⌫</Text>
                     </TouchableOpacity>
                 </View>
 
-                {/* Next / Save button */}
-                <TouchableOpacity
-                    onPress={handleNext}
-                    style={{
-                        marginTop: 20,
-                        backgroundColor: "#0e0057",
-                        paddingVertical: 12,
-                        paddingHorizontal: 50,
-                        borderRadius: 20,
-                    }}
-                >
-                    <Text style={{ color: "#fff", fontWeight: "bold", fontSize: 16 }}>
-                        {step === "enter" ? "Next" : "Save PIN"}
-                    </Text>
-                </TouchableOpacity>
+                {/* Optional: Add a button to go back to 'Enter' step if there's a mistake in Confirm */}
+                {step === "confirm" && (
+                    <TouchableOpacity
+                        onPress={() => { setStep("enter"); setConfirmPin(""); setPinState(""); }}
+                        style={{ marginTop: 20 }}
+                    >
+                        <Text style={{ color: "#0e0057", fontWeight: "600" }}>Start Over</Text>
+                    </TouchableOpacity>
+                )}
             </View>
         </View>
     );

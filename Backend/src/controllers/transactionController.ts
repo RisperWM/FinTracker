@@ -35,9 +35,11 @@ const getTransactions = async (req: any, res: any) => {
         }
 
         const transactions = await Transaction.find(filter).sort({ date: -1 });
+        console.log(transactions)
 
         res.status(200).json({ success: true, transactions });
     } catch (err: any) {
+        console.log(err)
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -78,10 +80,62 @@ const getDashboard = async (req: any, res: any) => {
         res.status(500).json({ success: false, message: err.message });
     }
 };
+// Update an existing transaction
+const updateTransaction = async (req:any, res:any) => {
+    try {
+        const { id } = req.params; // Get ID from URL
+        const { type, category, amount, description, date, goalId } = req.body;
 
-// Export using CommonJS
+        // Find the transaction first
+        let transaction = await Transaction.findById(id);
+
+        if (!transaction) {
+            return res.status(404).json({ success: false, message: "Transaction not found" });
+        }
+
+        // Optional: Check if the transaction belongs to the requesting user
+        // if (transaction.userId.toString() !== req.body.userId) {
+        //     return res.status(403).json({ success: false, message: "Unauthorized" });
+        // }
+
+        // Update fields
+        transaction.type = type || transaction.type;
+        transaction.category = category || transaction.category;
+        transaction.amount = amount || transaction.amount;
+        transaction.description = description || transaction.description;
+        transaction.goalId = goalId || transaction.goalId;
+        if (date) transaction.date = new Date(date);
+
+        const updatedTransaction = await transaction.save();
+
+        res.status(200).json({ success: true, transaction: updatedTransaction });
+    } catch (err:any) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// Delete a transaction
+const deleteTransaction = async (req:any, res:any) => {
+    try {
+        const { id } = req.params;
+
+        const transaction = await Transaction.findByIdAndDelete(id);
+
+        if (!transaction) {
+            return res.status(404).json({ success: false, message: "Transaction not found" });
+        }
+
+        res.status(200).json({ success: true, message: "Transaction deleted successfully" });
+    } catch (err:any) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// Update Export using CommonJS
 module.exports = {
     addTransaction,
     getTransactions,
     getDashboard,
+    updateTransaction,
+    deleteTransaction,
 };

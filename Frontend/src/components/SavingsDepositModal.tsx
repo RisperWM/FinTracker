@@ -7,6 +7,7 @@ interface DepositModalProps {
     setAmount: React.Dispatch<React.SetStateAction<string>>;
     onClose: () => void;
     onDeposit: () => Promise<void> | void;
+    type: "deposit" | "withdraw";
 }
 
 export const DepositModal: React.FC<DepositModalProps> = ({
@@ -15,30 +16,42 @@ export const DepositModal: React.FC<DepositModalProps> = ({
     setAmount,
     onClose,
     onDeposit,
-}) => (
-    <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-        <View style={styles.modalOverlay}>
-            <View style={styles.depositModal}>
-                <Text style={styles.modalTitle}>Enter Amount</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Amount"
-                    keyboardType="numeric"
-                    value={amount}
-                    onChangeText={setAmount}
-                />
-                <View style={styles.modalButtons}>
-                    <TouchableOpacity style={[styles.modalBtn, { backgroundColor: "#ccc" }]} onPress={onClose}>
-                        <Text style={styles.modalBtnText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity style={[styles.modalBtn, { backgroundColor: "green" }]} onPress={onDeposit}>
-                        <Text style={styles.modalBtnText}>Submit</Text>
-                    </TouchableOpacity>
+    type,
+}) => {
+    const titleText = type === "deposit" ? "Enter Deposit Amount" : "Enter Withdrawal Amount";
+    const btnColor = type === "deposit" ? "green" : "orange";
+
+    return (
+        <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
+            <View style={styles.modalOverlay}>
+                <View style={styles.depositModal}>
+                    <Text style={styles.modalTitle}>{titleText}</Text>
+                    <TextInput
+                        style={styles.input}
+                        placeholder="Amount"
+                        keyboardType="numeric"
+                        value={amount}
+                        onChangeText={setAmount}
+                    />
+                    <View style={styles.modalButtons}>
+                        <TouchableOpacity
+                            style={[styles.modalBtn, { backgroundColor: "#ccc" }]}
+                            onPress={onClose}
+                        >
+                            <Text style={[styles.modalBtnText, { color: "#000" }]}>Cancel</Text>
+                        </TouchableOpacity>
+                        <TouchableOpacity
+                            style={[styles.modalBtn, { backgroundColor: btnColor }]}
+                            onPress={onDeposit}
+                        >
+                            <Text style={styles.modalBtnText}>Submit</Text>
+                        </TouchableOpacity>
+                    </View>
                 </View>
             </View>
-        </View>
-    </Modal>
-);
+        </Modal>
+    );
+};
 
 const styles = StyleSheet.create({
     modalOverlay: {
@@ -55,8 +68,15 @@ const styles = StyleSheet.create({
         elevation: 5,
     },
     modalTitle: { fontSize: 18, fontWeight: "700", marginBottom: 10 },
-    input: { borderWidth: 1, borderColor: "#ccc", borderRadius: 8, padding: 8, marginBottom: 15 },
+    input: {
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 8,
+        padding: 10,
+        marginBottom: 15,
+        fontSize: 16,
+    },
     modalButtons: { flexDirection: "row", justifyContent: "space-between" },
-    modalBtn: { flex: 1, padding: 10, borderRadius: 8, marginHorizontal: 5 },
-    modalBtnText: { textAlign: "center", color: "#fff", fontWeight: "600" },
+    modalBtn: { flex: 1, padding: 12, borderRadius: 8, marginHorizontal: 5 },
+    modalBtnText: { textAlign: "center", color: "#fff", fontWeight: "600", fontSize: 16 },
 });

@@ -1,9 +1,10 @@
 const mongoose = require("mongoose");
 import type { Document, Model } from "mongoose"; // types only
 
-interface ITransaction extends Document {
+export interface ITransaction extends Document {
     userId: string;
-    type: "income" | "expense";
+    // accountId: string;
+    type: "income" | "expense" | "transfer";
     category: string;
     amount: number;
     description?: string;
@@ -14,7 +15,8 @@ interface ITransaction extends Document {
 
 const transactionSchema = new mongoose.Schema({
     userId: { type: String, required: true },
-    type: { type: String, enum: ["income", "expense"], required: true },
+    // accountId: { type: String, required: true },
+    type: { type: String, enum: ["income", "expense", "transfer"], required: true },
     category: { type: String, required: true },
     amount: { type: Number, required: true },
     description: { type: String },

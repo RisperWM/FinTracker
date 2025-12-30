@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import Logo from "../../assets/images/FinTracker-icon.png"
+import Logo from "../../assets/images/icon.png"
 
 const Register = () => {
     const { register, error, loading } = useAuthStore();
@@ -157,9 +157,9 @@ const Register = () => {
 export default Register;
 
 const styles = StyleSheet.create({
-    logoContainer: { alignItems: "center", marginBottom: 10 },
-    logo: { width: 100, height: 100 },
-    title: { fontSize: 24, fontWeight: "600", marginBottom: 20, textAlign: "center", margin: 10, color: "#0e0057" },
+    logoContainer: { alignItems: "center" },
+    logo: { width:120, height: 120 },
+    title: { fontSize: 24, fontWeight: "600", marginBottom: 20, textAlign: "center", color: "#0e0057" },
     label: { textTransform: "uppercase", color: "gray", fontWeight: "bold", marginBottom: 9 },
     input: { borderWidth: 1, borderColor: "#ccc", padding: 12, borderRadius: 5, marginBottom: 20 },
     passwordContainer: { flexDirection: "row", alignItems: "center", borderRadius: 5, marginBottom: 20 },

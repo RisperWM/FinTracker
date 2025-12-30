@@ -1,81 +1,108 @@
-import React, { useEffect } from "react";
-import { StyleSheet, Text, View, FlatList, TouchableOpacity } from "react-native";
+import React, { useState, useEffect } from "react";
+import { StyleSheet, Text, View, FlatList, TouchableOpacity, Alert } from "react-native";
 import { useTransactionStore } from "@/store/transactionStore";
 import { useAuthStore } from "@/store/authStore";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
+import TransactionCard from "./TransactionCard";
 
 const Transaction = () => {
-    const { transactions, getTransactions, loading, error } = useTransactionStore();
+    const { transactions, getTransactions, deleteTransaction, loading, error } = useTransactionStore();
     const user = useAuthStore((state) => state.user);
+
+    // State for batch selection
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const isSelectionMode = selectedIds.length > 0;
 
     useEffect(() => {
         if (user?._id) {
-            getTransactions(); // fetch all transactions
+            getTransactions();
         }
     }, [user?._id]);
 
-    // Show only the latest 5 transactions
     const recentTransactions = transactions.slice(0, 4);
 
-    // Date formatter helper
-    const formatDate = (dateString: string) => {
-        const date = new Date(dateString);
-        const today = new Date();
-        const yesterday = new Date();
-        yesterday.setDate(today.getDate() - 1);
+    const handlePress = (item: any) => {
+        if (isSelectionMode) {
+            toggleSelection(item._id);
+        } else {
+            // Normal behavior: maybe go to edit?
+            // router.push({ pathname: "/(tabs)/transactions/edit", params: { id: item._id } });
+            console.log("Edit item", item._id);
+        }
+    };
 
-        const isToday = date.toDateString() === today.toDateString();
-        const isYesterday = date.toDateString() === yesterday.toDateString();
+    const toggleSelection = (id: string) => {
+        setSelectedIds(prev =>
+            prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+        );
+    };
 
-        const time = date.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
-
-        if (isToday) return `Today, ${time}`;
-        if (isYesterday) return `Yesterday, ${time}`;
-        return date.toLocaleDateString();
+    const handleBatchDelete = () => {
+        Alert.alert(
+            "Delete Transactions",
+            `Remove ${selectedIds.length} selected items?`,
+            [
+                { text: "Cancel", style: "cancel" },
+                {
+                    text: "Delete",
+                    style: "destructive",
+                    onPress: async () => {
+                        for (const id of selectedIds) {
+                            await deleteTransaction(id);
+                        }
+                        setSelectedIds([]);
+                    }
+                }
+            ]
+        );
     };
 
     return (
         <View style={styles.container}>
             <View style={styles.headerRow}>
-                <Text style={styles.title}>Recent Transactions</Text>
-                <TouchableOpacity onPress={() => router.push("/(tabs)/transactions")}>
-                    <Text style={styles.seeAll}>View All</Text>
-                </TouchableOpacity>
+                <View style={styles.titleWrapper}>
+                    <Text style={styles.headerTitle}>
+                        {isSelectionMode ? `${selectedIds.length} Selected` : "Recent Activity"}
+                    </Text>
+                </View>
+
+                {isSelectionMode ? (
+                    <View style={styles.actionRow}>
+                        <TouchableOpacity onPress={handleBatchDelete} style={styles.iconBtn}>
+                            <Ionicons name="trash-outline" size={20} color="#c62828" />
+                        </TouchableOpacity>
+                        <TouchableOpacity onPress={() => setSelectedIds([])} style={styles.iconBtn}>
+                            <Ionicons name="close-circle-outline" size={22} color="#71717a" />
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <TouchableOpacity
+                        style={styles.seeAllContainer}
+                        onPress={() => router.push("/(tabs)/transactions")}
+                    >
+                        <Text style={styles.seeAll}>View All</Text>
+                        <Ionicons name="chevron-forward" size={14} color="#e68a13" />
+                    </TouchableOpacity>
+                )}
             </View>
 
-            {loading && <Text>Loading...</Text>}
-            {error && <Text style={{ color: "red" }}>{error}</Text>}
+            {loading && <View style={styles.center}><Text style={styles.statusText}>Syncing...</Text></View>}
 
             <FlatList
                 data={recentTransactions}
                 keyExtractor={(item) => item._id}
                 scrollEnabled={false}
                 renderItem={({ item }) => (
-                    <View style={styles.transactionRow}>
-                        <Ionicons
-                            name={item.type === "income" ? "arrow-up-circle" : "arrow-down-circle"}
-                            size={22}
-                            color={item.type === "income" ? "#2e7d32" : "#c62828"}
-                            style={{ marginRight: 10 }}
-                        />
-                        <View style={{ flex: 1 }}>
-                            <Text style={styles.transTitle}>{item.category || "No category"}</Text>
-                            <Text style={styles.transDesc}>{item.description || "No description"}</Text>
-                        </View>
-                        <View>
-                            <Text
-                                style={[
-                                    styles.transAmount,
-                                    { color: item.type === "income" ? "#2e7d32" : "#c62828" },
-                                ]}
-                            >
-                                KES {Number(item.amount).toLocaleString()}
-                            </Text>
-                            <Text style={styles.transDate}>{formatDate(item.date)}</Text>
-                        </View>
-                    </View>
+                    <TransactionCard
+                        item={item}
+                        selectionMode={isSelectionMode}
+                        isSelected={selectedIds.includes(item._id)}
+                        onPress={() => handlePress(item)}
+                        onLongPress={() => toggleSelection(item._id)}
+                    />
                 )}
+                contentContainerStyle={styles.listPadding}
             />
         </View>
     );
@@ -85,51 +112,53 @@ export default Transaction;
 
 const styles = StyleSheet.create({
     container: {
-        padding: 16,
+        padding: 12,
     },
     headerRow: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 8,
+        marginBottom: 16,
+        paddingHorizontal: 4,
+        height: 30,
     },
-    title: {
+    titleWrapper: {
+        flexDirection: 'row',
+        alignItems: 'center',
+    },
+    headerTitle: {
         fontSize: 18,
-        fontWeight: "600",
-        color: "#0e0057",
+        fontWeight: "700",
+        color: "#1a1a1a",
+        letterSpacing: -0.5,
+    },
+    actionRow: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        gap: 12,
+    },
+    iconBtn: {
+        padding: 2,
+    },
+    seeAllContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
     seeAll: {
-        fontSize: 14,
-        fontWeight: "500",
+        fontSize: 13,
+        fontWeight: "600",
         color: "#e68a13",
+        marginRight: 2,
     },
-    transactionRow: {
-        flexDirection: "row",
-        alignItems: "center",
-        paddingVertical: 10,
-        borderBottomWidth: 1,
-        borderBottomColor: "#eee",
-        backgroundColor: "#fff",
-        borderRadius:8,
-        margin:3,
-        padding:12
+    listPadding: {
+        paddingBottom: 4,
     },
-    transTitle: {
-        fontSize: 16,
-        fontWeight: "600",
-        color: "#333",
+    center: {
+        padding: 10,
+        alignItems: 'center',
     },
-    transDesc: {
-        fontSize: 12,
-        fontWeight: "400",
-        color: "#888",
-    },
-    transDate: {
-        fontSize: 12,
-        color: "#888",
-    },
-    transAmount: {
-        fontSize: 16,
-        fontWeight: "600",
+    statusText: {
+        fontSize: 13,
+        color: "#a1a1aa",
     },
 });

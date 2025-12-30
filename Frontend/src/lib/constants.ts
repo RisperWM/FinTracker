@@ -1,0 +1,2 @@
+export const incomeCategories = ["Salary", "Freelance", "Business", "Investments", "Allowance", "Other Income"];
+export const expenseCategories = ["Food & Dining", "Housing & Utilities", "Transportation", "Shopping", "Bills & Subscriptions", "Health & Wellness", "Entertainment", "Education", "Miscellaneous", "Friends & Family", "Loan"];
