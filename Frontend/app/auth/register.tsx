@@ -38,7 +38,7 @@ const Register = () => {
         });
 
         if (!error) {
-            router.push("/");
+            router.replace("/security/createPin");
         }
     };
 

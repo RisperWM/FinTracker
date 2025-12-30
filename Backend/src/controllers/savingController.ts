@@ -1,4 +1,5 @@
 const Saving = require("../models/Savings");
+const Transaction = require("../models/Transaction");
 
 // POST /api/savings
 const createSaving = async (req: any, res: any) => {
@@ -24,9 +25,32 @@ const createSaving = async (req: any, res: any) => {
 };
 
 // POST /api/savings/:id/deposit
+// const depositToSaving = async (req: any, res: any) => {
+//     try {
+//         const { amount } = req.body;
+//         const saving = await Saving.findById(req.params.id);
+
+//         if (!saving) return res.status(404).json({ success: false, message: "Saving plan not found" });
+
+//         saving.currentAmount += amount;
+
+//         // if goal reached
+//         if (saving.targetAmount && saving.currentAmount >= saving.targetAmount) {
+//             saving.status = "completed";
+//         }
+
+//         await saving.save();
+
+//         res.json({ success: true, data: saving });
+//     } catch (error: any) {
+//         res.status(500).json({ success: false, message: error.message });
+//     }
+// };
+
+
 const depositToSaving = async (req: any, res: any) => {
     try {
-        const { amount } = req.body;
+        const { userId, amount } = req.body; // include userId here
         const saving = await Saving.findById(req.params.id);
 
         if (!saving) return res.status(404).json({ success: false, message: "Saving plan not found" });
@@ -40,16 +64,28 @@ const depositToSaving = async (req: any, res: any) => {
 
         await saving.save();
 
+        // Create a transaction to deduct the amount from user's balance
+        await Transaction.create({
+            userId,                   // user's id
+            type: "expense",          // it's an expense
+            category: "Savings",      // category for clarity
+            amount: amount,
+            description: `Deposit to saving: ${saving.title}`,
+            date: new Date(),
+            goalId: saving._id,
+        });
+
         res.json({ success: true, data: saving });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }
 };
 
+
 // POST /api/savings/:id/withdraw
 const withdrawFromSaving = async (req: any, res: any) => {
     try {
-        const { amount } = req.body;
+        const { userId, amount } = req.body; // Include userId
         const saving = await Saving.findById(req.params.id);
 
         if (!saving) return res.status(404).json({ success: false, message: "Saving plan not found" });
@@ -67,11 +103,48 @@ const withdrawFromSaving = async (req: any, res: any) => {
 
         await saving.save();
 
+        // Create a transaction to add the withdrawn amount back to user's balance
+        await Transaction.create({
+            userId,                   // user's id
+            type: "income",           // adding back funds
+            category: "Savings Withdrawal",
+            amount: amount,
+            description: `Withdraw from saving: ${saving.title}`,
+            date: new Date(),
+            goalId: saving._id,
+        });
+
         res.json({ success: true, data: saving });
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }
 };
+
+// const withdrawFromSaving = async (req: any, res: any) => {
+//     try {
+//         const { amount } = req.body;
+//         const saving = await Saving.findById(req.params.id);
+
+//         if (!saving) return res.status(404).json({ success: false, message: "Saving plan not found" });
+
+//         if (amount > saving.currentAmount) {
+//             return res.status(400).json({ success: false, message: "Insufficient funds in saving" });
+//         }
+
+//         saving.currentAmount -= amount;
+
+//         // if user withdraws from completed saving, reopen it
+//         if (saving.targetAmount && saving.currentAmount < saving.targetAmount && saving.status === "completed") {
+//             saving.status = "active";
+//         }
+
+//         await saving.save();
+
+//         res.json({ success: true, data: saving });
+//     } catch (error: any) {
+//         res.status(500).json({ success: false, message: error.message });
+//     }
+// };
 
 // DELETE /api/savings/:id
 const deleteSaving = async (req: any, res: any) => {

@@ -2,23 +2,27 @@ const admin = require("../firebaseAdmin");
 const User = require("../models/User");
 
 // Register new user
-async function register(req: any, res: any) {
-    const { email, password, firstname, middlename, surname, gender, phonenumber } = req.body;
+async function register(req:any, res:any) {
+    const idToken = req.headers.authorization?.split(" ")[1];
+    if (!idToken) return res.status(401).json({ message: "Missing ID token" });
 
-    if (!email || !password || !firstname || !gender || !phonenumber) {
-        return res.status(400).json({ message: "Missing required fields" });
-    }
+    const { firstname, middlename, surname, gender, phonenumber, email } = req.body;
 
     try {
-        // Create user in Firebase Auth
-        const userRecord = await admin.auth().createUser({
-            email,
-            password,
-        });
+        // 🔐 Verify token
+        const decodedToken = await admin.auth().verifyIdToken(idToken);
 
-        // Create user in MongoDB
+        // 🧠 Use UID from token
+        const firebaseUid = decodedToken.uid;
+
+        // 🛑 Prevent duplicates
+        const existingUser = await User.findOne({ firebaseUid });
+        if (existingUser) {
+            return res.status(400).json({ message: "User already exists" });
+        }
+
         const newUser = new User({
-            firebaseUid: userRecord.uid,
+            firebaseUid,
             firstname,
             middlename,
             surname,
@@ -29,12 +33,13 @@ async function register(req: any, res: any) {
 
         await newUser.save();
 
-        return res.status(201).json({ message: "User registered successfully", user: newUser });
-    } catch (err: any) {
+        return res.status(201).json(newUser);
+    } catch (err) {
         console.error("Register Error:", err);
-        return res.status(500).json({ message: err.message });
+        return res.status(401).json({ message: "Invalid token" });
     }
 }
+
 
 // Login user
 async function login(req: any, res: any) {

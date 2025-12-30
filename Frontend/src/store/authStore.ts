@@ -9,7 +9,7 @@ import {
     getIdToken,
 } from "firebase/auth";
 
-const API_URL = "http://192.168.0.102:5000";
+const API_URL = "http://192.168.0.24:5000";
 
 type UserDetails = {
     _id: string;

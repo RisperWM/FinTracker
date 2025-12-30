@@ -7,16 +7,14 @@ import {
     FlatList,
     ActivityIndicator,
     RefreshControl,
-    Modal,
-    TextInput,
 } from "react-native";
 import { useSavingsStore } from "@/store/savingsStore";
 import CreateSavingModal from "@/src/components/SavingsModal";
+import { DepositModal } from "./SavingsDepositModal";
 
 // ------------------------------
-// Sub-components
+// Section Header
 // ------------------------------
-
 const SectionHeader = ({ title, actionLabel, onAction }: any) => (
     <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
@@ -26,8 +24,12 @@ const SectionHeader = ({ title, actionLabel, onAction }: any) => (
     </View>
 );
 
-const SavingCard = ({ item, onDeposit }: any) => {
+// ------------------------------
+// Saving Card
+// ------------------------------
+const SavingCard = ({ item, onAction }: any) => {
     if (!item) return null;
+
     const current = Number(item.currentAmount) || 0;
     const target = Number(item.targetAmount) || 1;
     const progress = Math.min(current / target, 1);
@@ -37,7 +39,7 @@ const SavingCard = ({ item, onDeposit }: any) => {
             <View style={styles.titleContainer}>
                 <Text style={styles.cardTitle}>{item.title}</Text>
                 <View style={styles.statusContainer}>
-                    <Text style={styles.status}>Status: {item.status}</Text>
+                    <Text style={styles.status}>{item.status.toUpperCase()}</Text>
                 </View>
             </View>
 
@@ -53,72 +55,36 @@ const SavingCard = ({ item, onDeposit }: any) => {
                 </View>
             </View>
 
-            <TouchableOpacity style={styles.depositBtn} onPress={onDeposit}>
-                <Text style={styles.depositText}>Deposit</Text>
-            </TouchableOpacity>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: "green" }]}
+                    onPress={() => onAction(item._id, "deposit")}
+                >
+                    <Text style={styles.actionText}>Deposit</Text>
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                    style={[styles.actionBtn, { backgroundColor: "orange" }]}
+                    onPress={() => onAction(item._id, "withdraw")}
+                >
+                    <Text style={styles.actionText}>Withdraw</Text>
+                </TouchableOpacity>
+            </View>
         </View>
     );
 };
 
-const DepositModal = ({
-    visible,
-    amount,
-    setAmount,
-    onClose,
-    onDeposit,
-}: {
-    visible: boolean;
-    amount: string;
-    setAmount: (val: string) => void;
-    onClose: () => void;
-    onDeposit: () => void;
-}) => (
-    <Modal
-        visible={visible}
-        animationType="slide"
-        transparent
-        onRequestClose={onClose}
-    >
-        <View style={styles.modalOverlay}>
-            <View style={styles.depositModal}>
-                <Text style={styles.modalTitle}>Deposit Amount</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Enter amount"
-                    keyboardType="numeric"
-                    value={amount}
-                    onChangeText={setAmount}
-                />
-                <View style={styles.modalButtons}>
-                    <TouchableOpacity
-                        style={[styles.modalBtn, { backgroundColor: "#ccc" }]}
-                        onPress={onClose}
-                    >
-                        <Text style={styles.modalBtnText}>Cancel</Text>
-                    </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.modalBtn, { backgroundColor: "green" }]}
-                        onPress={onDeposit}
-                    >
-                        <Text style={styles.modalBtnText}>Deposit</Text>
-                    </TouchableOpacity>
-                </View>
-            </View>
-        </View>
-    </Modal>
-);
-
 // ------------------------------
 // Main Savings Component
 // ------------------------------
-
 const Savings = () => {
-    const { savings, fetchSavings, createSaving, depositToSaving, loading, error } =
+    const { savings, fetchSavings, createSaving, depositToSaving, withdrawFromSaving, loading, error } =
         useSavingsStore();
 
     const [modalVisible, setModalVisible] = useState(false);
     const [depositModalVisible, setDepositModalVisible] = useState(false);
     const [selectedSavingId, setSelectedSavingId] = useState<string | null>(null);
+    const [depositType, setDepositType] = useState<"deposit" | "withdraw">("deposit");
     const [depositAmount, setDepositAmount] = useState<string>("");
     const [showAll, setShowAll] = useState(false);
 
@@ -134,24 +100,30 @@ const Savings = () => {
         }
     }, [createSaving]);
 
-    const handleDeposit = useCallback(async () => {
+    const handleDepositWithdraw = useCallback(async () => {
         if (!selectedSavingId) return;
         const amount = parseFloat(depositAmount);
         if (isNaN(amount) || amount <= 0) {
             alert("Enter a valid amount");
             return;
         }
+
         try {
-            await depositToSaving(selectedSavingId, amount);
+            if (depositType === "deposit") {
+                await depositToSaving(selectedSavingId, amount);
+            } else {
+                await withdrawFromSaving(selectedSavingId, amount);
+            }
             setDepositModalVisible(false);
             setDepositAmount("");
         } catch (err: any) {
             console.log("Error", err.message);
         }
-    }, [selectedSavingId, depositAmount, depositToSaving]);
+    }, [selectedSavingId, depositAmount, depositType, depositToSaving, withdrawFromSaving]);
 
-    const openDepositModal = (id: string) => {
+    const openDepositModal = (id: string, type: "deposit" | "withdraw") => {
         setSelectedSavingId(id);
+        setDepositType(type);
         setDepositModalVisible(true);
     };
 
@@ -159,23 +131,20 @@ const Savings = () => {
 
     return (
         <View style={styles.container}>
-            {/* Header */}
             <SectionHeader
                 title="My Savings Plans"
                 actionLabel="Create Plan"
                 onAction={() => setModalVisible(true)}
             />
 
-            {/* Loading & Error states */}
             {loading && <ActivityIndicator size="large" color="green" style={{ marginTop: 20 }} />}
             {error && <Text style={styles.error}>{error}</Text>}
 
-            {/* Savings List */}
             <FlatList
                 data={displayedSavings}
                 keyExtractor={(item) => item?._id ?? Math.random().toString()}
                 renderItem={({ item }) => (
-                    <SavingCard item={item} onDeposit={() => openDepositModal(item._id)} />
+                    <SavingCard item={item} onAction={openDepositModal} />
                 )}
                 horizontal
                 showsHorizontalScrollIndicator={false}
@@ -188,7 +157,6 @@ const Savings = () => {
                 }
             />
 
-            {/* View All Button */}
             {savings.length > 2 && (
                 <TouchableOpacity
                     style={styles.viewAllBtn}
@@ -200,20 +168,18 @@ const Savings = () => {
                 </TouchableOpacity>
             )}
 
-            {/* Create Saving Modal */}
             <CreateSavingModal
                 visible={modalVisible}
                 onClose={() => setModalVisible(false)}
                 onSave={handleCreateSaving}
             />
 
-            {/* Deposit Modal */}
             <DepositModal
                 visible={depositModalVisible}
                 amount={depositAmount}
                 setAmount={setDepositAmount}
                 onClose={() => setDepositModalVisible(false)}
-                onDeposit={handleDeposit}
+                onDeposit={handleDepositWithdraw}
             />
         </View>
     );
@@ -225,73 +191,12 @@ export default Savings;
 // Styles
 // ------------------------------
 const styles = StyleSheet.create({
-    container: {
-        flex: 1,
-        padding: 12,
-        backgroundColor: "#fff",
-    },
-    titleContainer: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-    },
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 20,
-    },
-    horizontalList: {
-        paddingVertical: 10,
-        gap: 10,
-    },
-    title: {
-        fontSize: 18,
-        fontWeight: "800",
-        color: "#0e0057",
-    },
-    progressContainer: {
-        marginTop: 8,
-        marginBottom: 8,
-    },
-    progressBarBackground: {
-        height: 10,
-        borderRadius: 5,
-        backgroundColor: "#e0e0e0",
-        overflow: "hidden",
-    },
-    progressBarFill: {
-        height: "100%",
-        backgroundColor: "green",
-        borderRadius: 5,
-    },
-    amountsRow: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginTop: 4,
-    },
-    amountText: {
-        color: "#797373ff",
-        fontSize: 12,
-        fontWeight: "600",
-    },
-    link: {
-        fontSize: 15,
-        color: "#007bff",
-        fontWeight: "600",
-    },
-    statusContainer: {
-        backgroundColor: "#007bff",
-        paddingHorizontal: 5,
-        paddingVertical: 1,
-        borderBottomLeftRadius: 12,
-        borderTopLeftRadius: 12,
-        justifyContent: "center",
-        textAlign: "center",
-    },
-    status: {
-        color: "#fff",
-        fontWeight: "500",
-        fontSize: 10,
-    },
+    container: { flex: 1, padding: 12, backgroundColor: "#fff" },
+    header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 20 },
+    title: { fontSize: 18, fontWeight: "800", color: "#0e0057" },
+    link: { fontSize: 15, color: "#007bff", fontWeight: "600" },
+    horizontalList: { paddingVertical: 10, gap: 10 },
+    titleContainer: { flexDirection: "row", justifyContent: "space-between" },
     card: {
         backgroundColor: "#f9f9f9",
         padding: 10,
@@ -304,79 +209,25 @@ const styles = StyleSheet.create({
         shadowRadius: 6,
         shadowOffset: { width: 0, height: 2 },
     },
-    cardTitle: {
-        fontSize: 16,
-        fontWeight: "800",
-        marginBottom: 6,
-    },
-    depositBtn: {
-        marginTop: 12,
-        padding: 6,
-        backgroundColor: "green",
-        borderRadius: 8,
-    },
-    depositText: {
-        color: "#fff",
-        textAlign: "center",
-        fontWeight: "600",
-    },
-    viewAllBtn: {
-        alignSelf: "center",
-        marginTop: 8,
-    },
-    viewAllText: {
-        color: "#3588d6ff",
-        fontWeight: "600",
-    },
-    empty: {
-        textAlign: "center",
-        color: "gray",
-        fontSize: 16,
-        marginTop: 30,
-    },
-    error: {
-        color: "red",
-        textAlign: "center",
-        marginBottom: 10,
-    },
-    modalOverlay: {
-        flex: 1,
-        backgroundColor: "rgba(0,0,0,0.4)",
+    cardTitle: { fontSize: 16, fontWeight: "800", marginBottom: 6 },
+    statusContainer: {
+        backgroundColor: "#007bff",
+        paddingHorizontal: 5,
+        paddingVertical: 1,
+        borderBottomLeftRadius: 12,
+        borderTopLeftRadius: 12,
         justifyContent: "center",
-        alignItems: "center",
     },
-    depositModal: {
-        backgroundColor: "#fff",
-        padding: 20,
-        borderRadius: 10,
-        width: "80%",
-        elevation: 5,
-    },
-    modalTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        marginBottom: 10,
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: "#ccc",
-        borderRadius: 8,
-        padding: 8,
-        marginBottom: 15,
-    },
-    modalButtons: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-    },
-    modalBtn: {
-        flex: 1,
-        padding: 10,
-        borderRadius: 8,
-        marginHorizontal: 5,
-    },
-    modalBtnText: {
-        textAlign: "center",
-        color: "#fff",
-        fontWeight: "600",
-    },
+    status: { color: "#fff", fontWeight: "500", fontSize: 10 },
+    progressContainer: { marginVertical: 8 },
+    progressBarBackground: { height: 10, borderRadius: 5, backgroundColor: "#e0e0e0", overflow: "hidden" },
+    progressBarFill: { height: "100%", backgroundColor: "green", borderRadius: 5 },
+    amountsRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
+    amountText: { color: "#797373ff", fontSize: 12, fontWeight: "600" },
+    actionBtn: { marginTop: 10, padding: 8, borderRadius: 8, flex: 1, marginHorizontal: 3 },
+    actionText: { color: "#fff", textAlign: "center", fontWeight: "600" },
+    viewAllBtn: { alignSelf: "center", marginTop: 8 },
+    viewAllText: { color: "#3588d6ff", fontWeight: "600" },
+    empty: { textAlign: "center", color: "gray", fontSize: 16, marginTop: 30 },
+    error: { color: "red", textAlign: "center", marginBottom: 10 },
 });

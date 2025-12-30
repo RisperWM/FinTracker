@@ -14,7 +14,7 @@ interface UserSettingsState {
     updateSettings: (newSettings: Partial<UserSettings>) => Promise<void>;
 }
 
-const API_URL = "http://192.168.0.102:5000";
+const API_URL = "http://192.168.0.24:5000";
 
 export const useUserSettingsStore = create<UserSettingsState>((set) => ({
     settings: null,

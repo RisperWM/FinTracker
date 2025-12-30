@@ -38,7 +38,7 @@ interface BudgetStore {
     deleteBudgetItem: (budgetId: string, itemId: string) => Promise<void>;
 }
 
-const API_URL = "http://192.168.0.102:5000";
+const API_URL = "http://192.168.0.24:5000";
 
 export const useBudgetStore = create<BudgetStore>((set, get) => ({
     budgets: [],

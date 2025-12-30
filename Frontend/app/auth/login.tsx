@@ -1,15 +1,16 @@
-import { StyleSheet, Text, TextInput, View, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform, Image } from "react-native";
+import { StyleSheet, Text, TextInput, View, TouchableOpacity, KeyboardAvoidingView, ScrollView, Platform, Image, Alert } from "react-native";
 import React, { useState } from "react";
 import { useAuthStore } from "@/store/authStore";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import Logo from "../../assets/images/FinTracker-icon.png"
+import Logo from "../../assets/images/FinTracker-icon.png";
 import { useEffect } from "react";
-
-
+import { pinExists } from "@/security/pin";
+import { usePinStore } from "@/store/pinStore";
 
 const Login = () => {
     const { login, error, loading } = useAuthStore();
+    const { unlock } = usePinStore();
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [showPassword, setShowPassword] = useState(false);
@@ -17,10 +18,16 @@ const Login = () => {
     const handleLogin = async () => {
         const success = await login(email, password);
         if (success) {
-            router.push("/");
+            const hasPin = await pinExists();
+
+            if (hasPin) {
+                unlock(); // reset pin unlocked state
+                router.replace("/security/unlock");
+            } else {
+                router.replace("/security/createPin");
+            }
         }
     };
-
 
     useEffect(() => {
         if (error) {
@@ -28,12 +35,9 @@ const Login = () => {
         }
     }, [error]);
 
-
-
     return (
         <KeyboardAvoidingView style={{ flex: 1 }} behavior={Platform.OS === "ios" ? "padding" : "height"}>
-            <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 20 }}
-                keyboardShouldPersistTaps="handled">
+            <ScrollView contentContainerStyle={{ flexGrow: 1, justifyContent: "center", padding: 20 }} keyboardShouldPersistTaps="handled">
                 <View style={styles.logoContainer}>
                     <Image source={Logo} style={styles.logo} resizeMode="contain" />
                 </View>
@@ -60,12 +64,7 @@ const Login = () => {
                         secureTextEntry={!showPassword}
                     />
                     <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
-                        <Ionicons
-                            name={showPassword ? "eye-off" : "eye"}
-                            size={24}
-                            color="gray"
-                            style={{ marginLeft: -35 }}
-                        />
+                        <Ionicons name={showPassword ? "eye-off" : "eye"} size={24} color="gray" style={{ marginLeft: -35 }} />
                     </TouchableOpacity>
                 </View>
 
@@ -76,9 +75,7 @@ const Login = () => {
                     onPress={handleLogin}
                     disabled={loading}
                 >
-                    <Text style={styles.loginBtnText}>
-                        {loading ? "Logging in..." : "Login"}
-                    </Text>
+                    <Text style={styles.loginBtnText}>{loading ? "Logging in..." : "Login"}</Text>
                 </TouchableOpacity>
 
                 <View style={styles.signIn}>
@@ -95,65 +92,17 @@ const Login = () => {
 export default Login;
 
 const styles = StyleSheet.create({
-    logoContainer: {
-        alignItems: "center",
-        marginBottom: 10,
-    },
-    logo: {
-        width: 100,   // adjust size as needed
-        height: 100,
-    },
-    title: {
-        fontSize: 24,
-        fontWeight: "600",
-        marginBottom: 20,
-        textAlign: "center",
-        margin: 10,
-        color: "#0e0057",
-    },
-    label: {
-        textTransform: "uppercase",
-        color: "gray",
-        fontWeight: "bold",
-        marginBottom: 9,
-    },
-    input: {
-        borderWidth: 1,
-        borderColor: "#ccc",
-        padding: 12,
-        borderRadius: 5,
-        marginBottom: 20,
-    },
-    passwordContainer: {
-        flexDirection: "row",
-        alignItems: "center",
-        borderRadius: 5,
-        marginBottom: 20
-    },
+    logoContainer: { alignItems: "center", marginBottom: 10 },
+    logo: { width: 100, height: 100 },
+    title: { fontSize: 24, fontWeight: "600", marginBottom: 20, textAlign: "center", margin: 10, color: "#0e0057" },
+    label: { textTransform: "uppercase", color: "gray", fontWeight: "bold", marginBottom: 9 },
+    input: { borderWidth: 1, borderColor: "#ccc", padding: 12, borderRadius: 5, marginBottom: 20 },
+    passwordContainer: { flexDirection: "row", alignItems: "center", borderRadius: 5, marginBottom: 20 },
     error: { color: "red", marginBottom: 10 },
-    signIn: {
-        margin: 10,
-        justifyContent: "center",
-        alignItems: "center",
-        flexDirection: "row",
-        gap: 5,
-        fontSize: 12,
-    },
+    signIn: { margin: 10, justifyContent: "center", alignItems: "center", flexDirection: "row", gap: 5, fontSize: 12 },
     signInText: { fontWeight: "500" },
     signInBtn: { fontWeight: "800", color: "#0e0057" },
-    loginBtn: {
-        backgroundColor: "#0e0057",
-        paddingVertical: 14,
-        borderRadius: 25,
-        alignItems: "center",
-        margin: 10,
-    },
-    loginBtnDisabled: {
-        backgroundColor: "#aaa",
-    },
-    loginBtnText: {
-        color: "#fff",
-        fontSize: 16,
-        fontWeight: "bold",
-    }
+    loginBtn: { backgroundColor: "#0e0057", paddingVertical: 14, borderRadius: 25, alignItems: "center", margin: 10 },
+    loginBtnDisabled: { backgroundColor: "#aaa" },
+    loginBtnText: { color: "#fff", fontSize: 16, fontWeight: "bold" }
 });

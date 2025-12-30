@@ -32,7 +32,7 @@ interface SavingsState {
     withdrawFromSaving: (id: string, amount: number) => Promise<void>;
 }
 
-const API_URL = "http://192.168.0.102:5000/api/savings";
+const API_URL = "http://192.168.0.24:5000/api/savings";
 
 // Helper to always get auth headers
 const getAuthHeaders = async () => {

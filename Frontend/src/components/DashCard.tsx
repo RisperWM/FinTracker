@@ -15,21 +15,22 @@ import { AddTransactionPopup } from "@/src/components/addTransaction";
 
 // Get screen dimensions for scaling
 const { width } = Dimensions.get("window");
-const CARD_HEIGHT = width * 0.41;
+const CARD_HEIGHT = width * 0.42;
 
 const DashCard = () => {
     const [showBalance, setShowBalance] = useState(true);
     const [showPopup, setShowPopup] = useState(false);
 
     const user = useAuthStore((state) => state.user);
-    const { dashboard, loading, error, getDashboard } = useTransactionStore();
+    const { dashboard, loading, error, getDashboard, transactions } = useTransactionStore();
 
+    // Refresh dashboard whenever user logs in or transactions change
     useEffect(() => {
         if (user?._id) {
             const now = new Date();
             getDashboard(now.getMonth() + 1, now.getFullYear());
         }
-    }, [user?._id]);
+    }, [user?._id, transactions]);
 
     const balance = dashboard?.balance ?? 0;
 
@@ -45,11 +46,7 @@ const DashCard = () => {
                 <View style={styles.balance}>
                     <Text style={styles.title}>Total Balance</Text>
                     <TouchableOpacity onPress={() => setShowBalance(!showBalance)}>
-                        <Ionicons
-                            name={showBalance ? "eye-off" : "eye"}
-                            size={20}
-                            color="white"
-                        />
+                        <Ionicons name={showBalance ? "eye-off" : "eye"} size={20} color="white" />
                     </TouchableOpacity>
                 </View>
 
@@ -61,29 +58,21 @@ const DashCard = () => {
                     ) : error ? (
                         <Text style={styles.subtitle}>Error</Text>
                     ) : (
-                        <Text style={styles.subtitle}>
-                            {showBalance ? balance : "••••"}
-                        </Text>
+                        <Text style={styles.subtitle}>{showBalance ? balance.toLocaleString() : "••••"}</Text>
                     )}
                 </View>
 
                 {/* User Row */}
                 <View style={styles.userRow}>
                     <Text style={styles.username}>
-                        {user
-                            ? `${user.firstname} ${user.middlename} ${user.surname}`
-                            : "Guest User"}
+                        {user ? `${user.firstname} ${user.middlename} ${user.surname}` : "Guest User"}
                     </Text>
-                    <TouchableOpacity
-                        style={styles.plusCircle}
-                        onPress={() => setShowPopup(true)}
-                    >
+
+                    <TouchableOpacity style={styles.plusCircle} onPress={() => setShowPopup(true)}>
                         <Ionicons name="add" size={20} color="#fff" />
                     </TouchableOpacity>
-                    <AddTransactionPopup
-                        visible={showPopup}
-                        onClose={() => setShowPopup(false)}
-                    />
+
+                    <AddTransactionPopup visible={showPopup} onClose={() => setShowPopup(false)} />
                 </View>
             </View>
         </ImageBackground>
@@ -155,9 +144,9 @@ const styles = StyleSheet.create({
         marginTop: 8,
     },
     plusCircle: {
-        width: 36,
-        height: 36,
-        borderRadius: 18,
+        width: width * 0.12,
+        height: width * 0.12,
+        borderRadius: (width * 0.12) / 2,
         backgroundColor: "#e68a13",
         justifyContent: "center",
         alignItems: "center",

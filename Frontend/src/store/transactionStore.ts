@@ -4,7 +4,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { auth } from "@/services/firebase";
 import { getIdToken } from "firebase/auth";
 
-const API_URL = "http://192.168.0.102:5000";
+const API_URL = "http://192.168.0.24:5000";
 
 type Transaction = {
     _id: any;
