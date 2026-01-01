@@ -1,4 +1,3 @@
-// src/components/Savings.tsx
 import React, { useEffect, useState, useCallback } from "react";
 import {
     StyleSheet,
@@ -9,13 +8,15 @@ import {
     ActivityIndicator,
     RefreshControl,
 } from "react-native";
+import { useRouter } from "expo-router"; // Assuming you use expo-router
 import { useSavingsStore } from "@/store/savingsStore";
 import { useTransactionStore } from "@/store/transactionStore";
 import { useAuthStore } from "@/store/authStore";
 import CreateSavingModal from "@/src/components/SavingsModal";
 import { DepositModal } from "./SavingsDepositModal";
+import SavingCard from "./SavingsCard";
+import { Ionicons } from "@expo/vector-icons";
 
-// Section header
 const SectionHeader = ({ title, actionLabel, onAction }: any) => (
     <View style={styles.header}>
         <Text style={styles.title}>{title}</Text>
@@ -25,66 +26,8 @@ const SectionHeader = ({ title, actionLabel, onAction }: any) => (
     </View>
 );
 
-// Saving card
-const SavingCard = ({ item, onAction }: any) => {
-    if (!item) return null;
-
-    const current = Number(item.currentAmount) || 0;
-    const target = Number(item.targetAmount) || 1;
-    const progress = Math.min(current / target, 1);
-
-    return (
-        <View style={styles.card}>
-            {/* Header: title & status */}
-            <View style={styles.cardHeader}>
-                <Text style={styles.cardTitle} numberOfLines={1}>
-                    {item.title}
-                </Text>
-                <View
-                    style={[
-                        styles.statusContainer,
-                        item.status === "completed"
-                            ? styles.statusCompleted
-                            : styles.statusActive,
-                    ]}
-                >
-                    <Text style={styles.status}>{item.status.toUpperCase()}</Text>
-                </View>
-            </View>
-
-            {/* Progress bar */}
-            <View style={styles.progressWrapper}>
-                <View style={styles.progressBackground}>
-                    <View
-                        style={[styles.progressFill, { width: `${progress * 100}%` }]}
-                    />
-                </View>
-                <Text style={styles.progressText}>
-                    {`${current.toLocaleString()} / ${target.toLocaleString()}`}
-                </Text>
-            </View>
-
-            {/* Action buttons */}
-            <View style={styles.actionRow}>
-                <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: "#4CAF50" }]}
-                    onPress={() => onAction(item._id, "deposit")}
-                >
-                    <Text style={styles.actionText}>Deposit</Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                    style={[styles.actionBtn, { backgroundColor: "#FF9800" }]}
-                    onPress={() => onAction(item._id, "withdraw")}
-                >
-                    <Text style={styles.actionText}>Withdraw</Text>
-                </TouchableOpacity>
-            </View>
-        </View>
-    );
-};
-
-// Main Savings Component
 const Savings = () => {
+    const router = useRouter();
     const {
         savings,
         fetchSavings,
@@ -94,6 +37,7 @@ const Savings = () => {
         loading,
         error,
     } = useSavingsStore();
+
     const { user } = useAuthStore();
     const { getDashboard, getTransactions } = useTransactionStore();
 
@@ -102,13 +46,12 @@ const Savings = () => {
     const [selectedSavingId, setSelectedSavingId] = useState<string | null>(null);
     const [depositType, setDepositType] = useState<"deposit" | "withdraw">("deposit");
     const [depositAmount, setDepositAmount] = useState<string>("");
-    const [showAll, setShowAll] = useState(false);
 
     useEffect(() => {
         fetchSavings();
         getDashboard(new Date().getMonth() + 1, new Date().getFullYear());
         getTransactions();
-    }, [fetchSavings, getDashboard]);
+    }, []);
 
     const handleCreateSaving = useCallback(
         async (newSaving: any) => {
@@ -124,12 +67,8 @@ const Savings = () => {
 
     const handleDepositWithdraw = useCallback(async () => {
         if (!selectedSavingId || !user) return;
-
         const amount = parseFloat(depositAmount);
-        if (isNaN(amount) || amount <= 0) {
-            alert("Enter a valid amount");
-            return;
-        }
+        if (isNaN(amount) || amount <= 0) return;
 
         try {
             if (depositType === "deposit") {
@@ -137,25 +76,13 @@ const Savings = () => {
             } else {
                 await withdrawFromSaving(selectedSavingId, { userId: user._id, amount });
             }
-
             setDepositModalVisible(false);
             setDepositAmount("");
             fetchSavings();
-            await getDashboard(new Date().getMonth() + 1, new Date().getFullYear());
         } catch (err: any) {
             console.log("Error", err.message);
-            alert(err.message || "An error occurred");
         }
-    }, [
-        selectedSavingId,
-        depositAmount,
-        depositType,
-        user,
-        depositToSaving,
-        withdrawFromSaving,
-        fetchSavings,
-        getDashboard,
-    ]);
+    }, [selectedSavingId, depositAmount, depositType, user, depositToSaving, withdrawFromSaving, fetchSavings]);
 
     const openDepositModal = (id: string, type: "deposit" | "withdraw") => {
         setSelectedSavingId(id);
@@ -163,40 +90,50 @@ const Savings = () => {
         setDepositModalVisible(true);
     };
 
-    const displayedSavings = showAll ? savings : savings.slice(0, 4);
+    // Logic: show 3 items, then append a dummy item for the "View All" card if needed
+    const dataForList = savings.length > 3
+        ? [...savings.slice(0, 3), { _id: 'view_all_trigger' }]
+        : savings;
 
     return (
         <View style={styles.container}>
             <SectionHeader
                 title="My Savings Plans"
-                actionLabel="Create Plan"
-                onAction={() => setModalVisible(true)}
+                actionLabel={savings.length === 0 ? "Create Plan" : "View All"}
+                onAction={() => {
+                    if (savings.length === 0) setModalVisible(true);
+                    else router.push("/savings"); // Navigate to main savings page
+                }}
             />
 
-            {loading && <ActivityIndicator size="large" color="#4CAF50" style={{ marginTop: 20 }} />}
-            {error && <Text style={styles.error}>{error}</Text>}
+            {loading && savings.length === 0 && (
+                <ActivityIndicator size="small" color="#0e0057" style={{ marginVertical: 20 }} />
+            )}
 
             <FlatList
-                data={displayedSavings}
-                keyExtractor={(item) => item?._id ?? Math.random().toString()}
-                renderItem={({ item }) => <SavingCard item={item} onAction={openDepositModal} />}
+                data={dataForList}
+                keyExtractor={(item) => item._id}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.horizontalList}
+                renderItem={({ item }) => {
+                    if (item._id === 'view_all_trigger') {
+                        return (
+                            <TouchableOpacity
+                                style={styles.viewAllCard}
+                                onPress={() => router.push("/savings")}
+                            >
+                                <Ionicons name="arrow-forward-circle" size={40} color="#0e0057" />
+                                <Text style={styles.viewAllCardText}>View All</Text>
+                            </TouchableOpacity>
+                        );
+                    }
+                    return <SavingCard item={item} onAction={openDepositModal} />;
+                }}
                 ListEmptyComponent={() =>
-                    !loading ? <Text style={styles.empty}>No savings yet. Create one!</Text> : null
+                    !loading ? <Text style={styles.empty}>Start saving for your goals today!</Text> : null
                 }
-                refreshControl={<RefreshControl refreshing={loading} onRefresh={fetchSavings} />}
             />
-
-            {savings.length > 2 && (
-                <TouchableOpacity
-                    style={styles.viewAllBtn}
-                    onPress={() => setShowAll(!showAll)}
-                >
-                    <Text style={styles.viewAllText}>{showAll ? "Show Less" : "View All"}</Text>
-                </TouchableOpacity>
-            )}
 
             <CreateSavingModal
                 visible={modalVisible}
@@ -216,52 +153,31 @@ const Savings = () => {
     );
 };
 
-export default Savings;
-
-// --------------------
-// Styles
-// --------------------
 const styles = StyleSheet.create({
-    container: { flex: 1, padding: 12, backgroundColor: "#f6f6f6" },
+    container: { flex: 1, padding: 12, backgroundColor: "#f8fafc" },
+    header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 12, alignItems: 'center' },
+    title: { fontSize: 18, fontWeight: "800", color: "#0e0057" },
+    link: { fontSize: 13, color: "#10b981", fontWeight: "700" },
+    horizontalList: { paddingBottom: 10, gap: 12 },
 
-    header: { flexDirection: "row", justifyContent: "space-between", marginBottom: 16 },
-    title: { fontSize: 20, fontWeight: "700", color: "#1E1E1E" },
-    link: { fontSize: 14, color: "#007bff", fontWeight: "600" },
-
-    horizontalList: { paddingVertical: 8, gap: 10 },
-
-    card: {
+    viewAllCard: {
+        width: 120,
+        height: 160,
         backgroundColor: "#fff",
         borderRadius: 14,
-        padding: 12,
-        marginBottom: 12,
-        width: 165,
-        shadowColor: "#000",
-        shadowOpacity: 0.05,
-        shadowRadius: 8,
-        shadowOffset: { width: 0, height: 2 },
-        elevation: 3,
+        justifyContent: "center",
+        alignItems: "center",
+        borderWidth: 1,
+        borderColor: "#e2e8f0",
+        borderStyle: 'dashed'
     },
-
-    cardHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
-    cardTitle: { fontSize: 15, fontWeight: "700", flex: 1, marginRight: 6 },
-    statusContainer: { paddingHorizontal: 6, paddingVertical: 2, borderRadius: 10 },
-    statusActive: { backgroundColor: "#4CAF50" },
-    statusCompleted: { backgroundColor: "#2196F3" },
-    status: { fontSize: 10, fontWeight: "600", color: "#fff" },
-
-    progressWrapper: { marginBottom: 10 },
-    progressBackground: { height: 6, backgroundColor: "#E0E0E0", borderRadius: 3, overflow: "hidden" },
-    progressFill: { height: "100%", backgroundColor: "#4CAF50", borderRadius: 3 },
-    progressText: { fontSize: 10, color: "#555", marginTop: 4, textAlign: "right" },
-
-    actionRow: { flexDirection: "row", justifyContent: "space-between", marginTop: 4 },
-    actionBtn: { flex: 1, marginHorizontal: 2, paddingVertical: 6, borderRadius: 8 },
-    actionText: { textAlign: "center", color: "#fff", fontWeight: "600", fontSize: 12 },
-
-    viewAllBtn: { alignSelf: "center", marginTop: 8 },
-    viewAllText: { color: "#007bff", fontWeight: "600" },
-
-    empty: { textAlign: "center", color: "#999", fontSize: 14, marginTop: 20 },
-    error: { color: "red", textAlign: "center", marginBottom: 10 },
+    viewAllCardText: {
+        marginTop: 8,
+        fontSize: 14,
+        fontWeight: "700",
+        color: "#0e0057"
+    },
+    empty: { textAlign: "center", color: "#94a3b8", fontSize: 13, marginTop: 10 },
 });
+
+export default Savings;

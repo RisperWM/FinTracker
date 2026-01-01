@@ -80,6 +80,40 @@ const getDashboard = async (req: any, res: any) => {
         res.status(500).json({ success: false, message: err.message });
     }
 };
+
+// getting total balance 
+const getTotalBalance = async (req: any, res: any) => {
+    try {
+        const { userId } = req.query;
+        const stats = await Transaction.aggregate([
+            { $match: { userId: userId } },
+            {
+                $group: {
+                    _id: null,
+                    totalIncome: {
+                        $sum: { $cond: [{ $eq: ["$type", "income"] }, "$amount", 0] }
+                    },
+                    totalExpense: {
+                        $sum: { $cond: [{ $eq: ["$type", "expense"] }, "$amount", 0] }
+                    }
+                }
+            }
+        ]);
+
+        const result = stats.length > 0 ? stats[0] : { totalIncome: 0, totalExpense: 0 };
+        const balance = result.totalIncome - result.totalExpense;
+
+        res.status(200).json({
+            success: true,
+            totalIncome: result.totalIncome,
+            totalExpense: result.totalExpense,
+            balance: balance
+        });
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
 // Update an existing transaction
 const updateTransaction = async (req:any, res:any) => {
     try {
@@ -94,9 +128,9 @@ const updateTransaction = async (req:any, res:any) => {
         }
 
         // Optional: Check if the transaction belongs to the requesting user
-        // if (transaction.userId.toString() !== req.body.userId) {
-        //     return res.status(403).json({ success: false, message: "Unauthorized" });
-        // }
+        if (transaction.userId.toString() !== req.body.userId) {
+            return res.status(403).json({ success: false, message: "Unauthorized" });
+        }
 
         // Update fields
         transaction.type = type || transaction.type;
@@ -138,4 +172,5 @@ module.exports = {
     getDashboard,
     updateTransaction,
     deleteTransaction,
+    getTotalBalance,
 };

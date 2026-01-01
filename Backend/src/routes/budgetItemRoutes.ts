@@ -1,11 +1,6 @@
 const express = require("express");
 const { authenticate } = require("../middleware/authMiddleware");
-const {
-    getBudgetItems,
-    createBudgetItem,
-    updateBudgetItem,
-    deleteBudgetItem,
-} = require("../controllers/budgetItemController");
+const { getBudgetItems, createBudgetItem, updateBudgetItem, deleteBudgetItem, } = require("../controllers/budgetItemController");
 
 const router = express.Router();
 

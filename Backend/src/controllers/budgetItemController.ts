@@ -27,6 +27,7 @@ const createBudgetItem = async (req: any, res: any) => {
             spentAmount,
         });
         await item.save();
+        console.log(item)
 
         // 🔍 Check user settings
         const userSettings = await UserSettings.findOne({ userId });
@@ -48,6 +49,7 @@ const createBudgetItem = async (req: any, res: any) => {
 
         res.status(201).json({ success: true, data: item });
     } catch (error: any) {
+        console.log(error)
         console.error("createBudgetItem error:", error);
         res.status(500).json({ success: false, message: error.message });
     }
@@ -68,17 +70,29 @@ const updateBudgetItem = async (req: any, res: any) => {
     }
 };
 
-// DELETE /api/budget-items/:id
 const deleteBudgetItem = async (req: any, res: any) => {
     try {
         const { id } = req.params;
-        const item = await BudgetItem.findById(id);
-        if (!item) return res.status(404).json({ success: false, message: "Item not found" });
 
-        await item.remove();
-        res.json({ success: true, message: "Item deleted successfully" });
+        const deletedItem = await BudgetItem.findByIdAndDelete(id);
+
+        if (!deletedItem) {
+            return res.status(404).json({
+                success: false,
+                message: "Item not found"
+            });
+        }
+
+        res.json({
+            success: true,
+            message: "Item deleted successfully"
+        });
     } catch (error: any) {
-        res.status(500).json({ success: false, message: error.message });
+        console.log("Delete Error:", error);
+        res.status(500).json({
+            success: false,
+            message: error.message
+        });
     }
 };
 

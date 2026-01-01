@@ -1,203 +1,190 @@
 import React, { useState } from "react";
-import {
-    View,
-    Text,
-    StyleSheet,
-    Pressable,
-    TouchableOpacity,
-} from "react-native";
+import { View, Text, StyleSheet, Pressable, TouchableOpacity } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { AnimatedCircularProgress } from "react-native-circular-progress";
 
-interface BudgetItem {
-    _id?: string;
-    budgetId: string;
-    title: string;
-    description?: string;
-    amount: number;
-    spentAmount: number;
-    createdAt?: string;
-    updatedAt?: string;
-}
-
-interface BudgetItemCardProps {
-    item: BudgetItem;
-    onEdit: (item: BudgetItem) => void;
+interface Props {
+    item: any;
+    onEdit: (item: any) => void;
     onDelete: (id: string) => void;
+    onLogSpent: (item: any) => void;
+    isSelected?: boolean;
+    selectionMode?: boolean;
     onPress?: () => void;
+    onLongPress?: () => void;
 }
 
-// ✅ Currency formatter
-const formatCurrency = (amount: number): string => {
-    if (isNaN(amount)) return "Ksh 0.00";
-    return `Ksh ${amount.toLocaleString("en-KE", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-    })}`;
-};
-
-const BudgetItemCard: React.FC<BudgetItemCardProps> = ({
+const BudgetItemCard: React.FC<Props> = ({
     item,
     onEdit,
     onDelete,
+    onLogSpent,
+    isSelected,
+    selectionMode,
     onPress,
+    onLongPress
 }) => {
     const [showActions, setShowActions] = useState(false);
+    const progress = item.amount > 0 ? (item.spentAmount / item.amount) * 100 : 0;
 
-    const progress = item.amount ? item.spentAmount / item.amount : 0;
-    const percentage = Math.round(progress * 100);
-    const overBudget = item.spentAmount > item.amount;
-    const extraAmount = overBudget ? item.spentAmount - item.amount : 0;
-
-    // ✅ Color logic
-    let statusColor = "#059669"; // green
-    if (percentage > 90 && percentage <= 100) statusColor = "#e79332ff"; // orange
-    if (percentage > 100) statusColor = "#DC2626"; // red
+    let statusColor = "#4CAF50";
+    if (progress > 85) statusColor = "#FF9800";
+    if (progress > 100) statusColor = "#EF4444";
 
     const handlePress = () => {
-        setShowActions(!showActions);
-        onPress?.();
+        if (selectionMode && onPress) {
+            onPress();
+        } else {
+            setShowActions(!showActions);
+        }
     };
 
     return (
-        <Pressable
-            style={({ pressed }) => [
-                styles.card,
-                { backgroundColor: pressed ? "#F0FDF4" : "#FFFFFF" },
-            ]}
-            onPress={handlePress}
-        >
-            {/* Circular Progress */}
-            <View style={styles.progressContainer}>
-                <AnimatedCircularProgress
-                    size={52}
-                    width={6}
-                    fill={percentage > 100 ? 100 : percentage}
-                    tintColor={statusColor}
-                    backgroundColor="#E5E7EB"
-                    rotation={0}
-                    lineCap="round"
+        <View style={[
+            styles.outerContainer,
+            isSelected && styles.selectedCard
+        ]}>
+            {/* Main Info Section */}
+            <View style={styles.topSection}>
+                <View style={[styles.statusLine, { backgroundColor: statusColor }]} />
+
+                <Pressable
+                    onPress={handlePress}
+                    onLongPress={onLongPress}
+                    style={styles.card}
                 >
-                    {() => (
-                        <Ionicons name="wallet-outline" size={20} color={statusColor} />
+                    {selectionMode && (
+                        <View style={styles.selectionIcon}>
+                            <Ionicons
+                                name={isSelected ? "checkmark-circle" : "ellipse-outline"}
+                                size={22}
+                                color={isSelected ? "#4CAF50" : "#CBD5E1"}
+                            />
+                        </View>
                     )}
-                </AnimatedCircularProgress>
-            </View>
 
-            {/* Info */}
-            <View style={styles.info}>
-                <Text style={styles.title} numberOfLines={1}>
-                    {item.title}
-                </Text>
-                {item.description && (
-                    <Text style={styles.desc} numberOfLines={1}>
-                        {item.description}
-                    </Text>
-                )}
-
-                <View style={styles.amountRow}>
-                    <Text style={styles.spent}>{formatCurrency(item.spentAmount)}</Text>
-                    <Text style={styles.total}> / {formatCurrency(item.amount)}</Text>
-                </View>
-
-                {overBudget ? (
-                    <Text style={[styles.overBudgetText, { color: statusColor }]}>
-                        Over budget by {formatCurrency(extraAmount)}
-                    </Text>
-                ) : (
-                    <Text style={[styles.percent, { color: statusColor }]}>
-                        {percentage}% spent
-                    </Text>
-                )}
-            </View>
-
-            {/* Actions (Edit/Delete) */}
-            {showActions && (
-                <View style={styles.actions}>
-                    <TouchableOpacity
-                        style={styles.iconButton}
-                        onPress={() => onEdit(item)}
+                    <AnimatedCircularProgress
+                        size={45}
+                        width={5}
+                        fill={progress > 100 ? 100 : progress}
+                        tintColor={statusColor}
+                        backgroundColor="#F1F5F9"
+                        rotation={0}
+                        lineCap="round"
                     >
-                        <Ionicons name="create-outline" size={20} color="#2563EB" />
+                        {() => <Text style={[styles.progressText, { color: statusColor }]}>{Math.round(progress)}%</Text>}
+                    </AnimatedCircularProgress>
+
+                    <View style={styles.info}>
+                        <Text style={styles.title} numberOfLines={1}>{item.title}</Text>
+                        <View style={styles.amountRow}>
+                            <Text style={styles.spentText}>KES {item.spentAmount.toLocaleString()}</Text>
+                            <Text style={styles.totalText}> of {item.amount.toLocaleString()}</Text>
+                        </View>
+                    </View>
+
+                    {!selectionMode && (
+                        <Ionicons
+                            name={showActions ? "chevron-up" : "chevron-down"}
+                            size={18}
+                            color="#CBD5E1"
+                        />
+                    )}
+                </Pressable>
+            </View>
+
+            {/* Actions Row - Now positioned below to prevent text squeezing */}
+            {showActions && !selectionMode && (
+                <View style={styles.actionRow}>
+                    <TouchableOpacity onPress={() => onLogSpent(item)} style={styles.actionBtn}>
+                        <Ionicons name="add-circle-outline" size={16} color="#4CAF50" />
+                        <Text style={[styles.actionText, { color: "#4CAF50" }]}>Log Spend</Text>
                     </TouchableOpacity>
-                    <TouchableOpacity
-                        style={[styles.iconButton, { marginLeft: 8 }]}
-                        onPress={() => onDelete(item._id!)}
-                    >
-                        <Ionicons name="trash-outline" size={20} color="#DC2626" />
+
+                    <TouchableOpacity onPress={() => onEdit(item)} style={styles.actionBtn}>
+                        <Ionicons name="pencil-outline" size={16} color="#64748B" />
+                        <Text style={styles.actionText}>Edit</Text>
+                    </TouchableOpacity>
+
+                    <TouchableOpacity onPress={() => onDelete(item._id!)} style={styles.actionBtn}>
+                        <Ionicons name="trash-outline" size={16} color="#EF4444" />
+                        <Text style={[styles.actionText, { color: "#EF4444" }]}>Delete</Text>
                     </TouchableOpacity>
                 </View>
             )}
-        </Pressable>
+        </View>
     );
 };
 
 const styles = StyleSheet.create({
-    card: {
-        flexDirection: "row",
-        backgroundColor: "#FFFFFF",
-        borderRadius: 12,
-        paddingVertical: 4,
-        paddingHorizontal: 5,
-        marginBottom: 12,
-        shadowColor: "#000",
-        shadowOpacity: 0.05,
-        shadowOffset: { width: 0, height: 3 },
-        shadowRadius: 5,
+    outerContainer: {
+        backgroundColor: "#FFF",
+        borderRadius: 14,
+        marginBottom: 10,
         elevation: 2,
-        alignItems: "center",
+        shadowColor: "#000",
+        shadowOffset: { width: 0, height: 1 },
+        shadowOpacity: 0.1,
+        shadowRadius: 3,
+        overflow: 'hidden',
     },
-    progressContainer: {
-        marginRight: 14,
-        alignItems: "center",
-        justifyContent: "center",
+    topSection: {
+        flexDirection: 'row',
+        alignItems: 'center',
     },
+    selectedCard: {
+        backgroundColor: "#F0FDF4",
+        borderColor: "#4CAF50",
+        borderWidth: 1,
+    },
+    statusLine: {
+        width: 4,
+        height: '100%',
+    },
+    card: {
+        flex: 1,
+        flexDirection: "row",
+        alignItems: "center",
+        padding: 12,
+    },
+    selectionIcon: {
+        marginRight: 10,
+    },
+    progressText: { fontSize: 10, fontWeight: "800" },
     info: {
         flex: 1,
+        marginLeft: 15,
     },
     title: {
         fontSize: 16,
         fontWeight: "700",
-        color: "#111827",
-    },
-    desc: {
-        color: "#6B7280",
-        fontSize: 13,
-        marginTop: 2,
+        color: "#1E293B",
+        marginBottom: 2
     },
     amountRow: {
         flexDirection: "row",
         alignItems: "center",
-        marginTop: 6,
     },
-    spent: {
-        color: "#065F46",
-        fontWeight: "600",
+    spentText: { fontSize: 14, fontWeight: "700", color: "#0e0057" },
+    totalText: { fontSize: 12, color: "#64748B", marginLeft: 4 },
+    actionRow: {
+        flexDirection: "row",
+        paddingVertical: 12,
+        borderTopWidth: 1,
+        borderTopColor: "#F1F5F9",
+        justifyContent: 'space-around',
+        backgroundColor: "#fafafa"
     },
-    total: {
-        color: "#6B7280",
-        fontSize: 13,
-        marginLeft: 4,
-    },
-    percent: {
-        fontSize: 13,
-        fontWeight: "600",
-        marginTop: 4,
-    },
-    overBudgetText: {
-        fontSize: 13,
-        fontWeight: "700",
-        marginTop: 4,
-    },
-    actions: {
+    actionBtn: {
         flexDirection: "row",
         alignItems: "center",
-        marginLeft: 10,
+        gap: 6,
     },
-    iconButton: {
-        padding: 6,
-        borderRadius: 8,
-    },
+    actionText: {
+        fontSize: 13,
+        fontWeight: "700",
+        color: "#64748B"
+    }
 });
 
 export default BudgetItemCard;

@@ -1,16 +1,21 @@
 import React, { useState, useEffect } from "react";
-import { StyleSheet, Text, View, FlatList, TouchableOpacity, Alert } from "react-native";
+import { StyleSheet, Text, View, TouchableOpacity, Alert, Dimensions } from "react-native";
 import { useTransactionStore } from "@/store/transactionStore";
 import { useAuthStore } from "@/store/authStore";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import TransactionCard from "./TransactionCard";
 
+// 🔹 Get screen dimensions for responsiveness
+const { width } = Dimensions.get("window");
+
+// 🔹 Responsive scaling helper (scales based on a standard 375px width screen)
+const scale = (size: number) => (width / 375) * size;
+
 const Transaction = () => {
-    const { transactions, getTransactions, deleteTransaction, loading, error } = useTransactionStore();
+    const { transactions, getTransactions, deleteTransaction, loading } = useTransactionStore();
     const user = useAuthStore((state) => state.user);
 
-    // State for batch selection
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
     const isSelectionMode = selectedIds.length > 0;
 
@@ -26,8 +31,6 @@ const Transaction = () => {
         if (isSelectionMode) {
             toggleSelection(item._id);
         } else {
-            // Normal behavior: maybe go to edit?
-            // router.push({ pathname: "/(tabs)/transactions/edit", params: { id: item._id } });
             console.log("Edit item", item._id);
         }
     };
@@ -70,10 +73,10 @@ const Transaction = () => {
                 {isSelectionMode ? (
                     <View style={styles.actionRow}>
                         <TouchableOpacity onPress={handleBatchDelete} style={styles.iconBtn}>
-                            <Ionicons name="trash-outline" size={20} color="#c62828" />
+                            <Ionicons name="trash-outline" size={scale(20)} color="#c62828" />
                         </TouchableOpacity>
                         <TouchableOpacity onPress={() => setSelectedIds([])} style={styles.iconBtn}>
-                            <Ionicons name="close-circle-outline" size={22} color="#71717a" />
+                            <Ionicons name="close-circle-outline" size={scale(22)} color="#71717a" />
                         </TouchableOpacity>
                     </View>
                 ) : (
@@ -82,28 +85,30 @@ const Transaction = () => {
                         onPress={() => router.push("/(tabs)/transactions")}
                     >
                         <Text style={styles.seeAll}>View All</Text>
-                        <Ionicons name="chevron-forward" size={14} color="#e68a13" />
+                        <Ionicons name="chevron-forward" size={scale(14)} color="#e68a13" />
                     </TouchableOpacity>
                 )}
             </View>
 
-            {loading && <View style={styles.center}><Text style={styles.statusText}>Syncing...</Text></View>}
+            {loading && (
+                <View style={styles.center}>
+                    <Text style={styles.statusText}>Syncing...</Text>
+                </View>
+            )}
 
-            <FlatList
-                data={recentTransactions}
-                keyExtractor={(item) => item._id}
-                scrollEnabled={false}
-                renderItem={({ item }) => (
+            {/* 🔹 Using map instead of FlatList for better performance inside a Parent ScrollView */}
+            <View style={styles.listContainer}>
+                {recentTransactions.map((item) => (
                     <TransactionCard
+                        key={item._id}
                         item={item}
                         selectionMode={isSelectionMode}
                         isSelected={selectedIds.includes(item._id)}
                         onPress={() => handlePress(item)}
                         onLongPress={() => toggleSelection(item._id)}
                     />
-                )}
-                contentContainerStyle={styles.listPadding}
-            />
+                ))}
+            </View>
         </View>
     );
 };
@@ -112,53 +117,54 @@ export default Transaction;
 
 const styles = StyleSheet.create({
     container: {
-        padding: 12,
+        // 🔹 Percentage-based padding for responsiveness
+        paddingHorizontal: width * 0.04,
     },
     headerRow: {
         flexDirection: "row",
         justifyContent: "space-between",
         alignItems: "center",
-        marginBottom: 16,
-        paddingHorizontal: 4,
-        height: 30,
+        marginBottom: scale(16),
+        paddingHorizontal: scale(4),
+        height: scale(23),
     },
     titleWrapper: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     headerTitle: {
-        fontSize: 18,
-        fontWeight: "700",
-        color: "#1a1a1a",
-        letterSpacing: -0.5,
+        // 🔹 Scaled font size
+        fontSize: scale(18),
+        fontWeight: "800",
+        color: "#0e0057",
     },
     actionRow: {
         flexDirection: 'row',
         alignItems: 'center',
-        gap: 12,
+        gap: scale(12),
     },
     iconBtn: {
-        padding: 2,
+        padding: scale(2),
     },
     seeAllContainer: {
         flexDirection: 'row',
         alignItems: 'center',
     },
     seeAll: {
-        fontSize: 13,
+        fontSize: scale(13),
         fontWeight: "600",
         color: "#e68a13",
-        marginRight: 2,
+        marginRight: scale(2),
     },
-    listPadding: {
-        paddingBottom: 4,
+    listContainer: {
+        paddingBottom: scale(10),
     },
     center: {
-        padding: 10,
+        padding: scale(10),
         alignItems: 'center',
     },
     statusText: {
-        fontSize: 13,
+        fontSize: scale(13),
         color: "#a1a1aa",
     },
 });

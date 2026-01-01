@@ -1,4 +1,3 @@
-// store/transactionStore.ts
 import { create } from "zustand";
 import { auth } from "@/services/firebase";
 import { getIdToken } from "firebase/auth";
@@ -26,6 +25,7 @@ type Dashboard = {
 type TransactionState = {
     transactions: Transaction[];
     dashboard: Dashboard | null;
+    totalBalance: number; // 🔹 Added for lifetime balance
     loading: boolean;
     error: string | null;
     addTransaction: (data: Omit<Transaction, "_id" | "userId">) => Promise<boolean>;
@@ -33,13 +33,36 @@ type TransactionState = {
     deleteTransaction: (id: string) => Promise<boolean>;
     getTransactions: (month?: number, year?: number) => Promise<void>;
     getDashboard: (month: number, year: number) => Promise<void>;
+    getTotalBalance: () => Promise<void>; // 🔹 New function
 };
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({
     transactions: [],
     dashboard: null,
+    totalBalance: 0, // 🔹 Initialized
     loading: false,
     error: null,
+
+    // --- GET TOTAL BALANCE (LIFETIME) ---
+    getTotalBalance: async () => {
+        try {
+            const currentUser = auth.currentUser;
+            if (!currentUser) return;
+            const token = await getIdToken(currentUser);
+
+            const res = await fetch(`${API_URL}/api/transaction/balance?userId=${currentUser.uid}`, {
+                method: "GET",
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            const json = await res.json();
+            if (res.ok) {
+                set({ totalBalance: json.balance });
+            }
+        } catch (err) {
+            console.error("Error fetching total balance:", err);
+        }
+    },
 
     // --- ADD ---
     addTransaction: async (data) => {
@@ -49,7 +72,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             if (!currentUser) throw new Error("Not authenticated");
             const token = await getIdToken(currentUser);
 
-            const res = await fetch(`${API_URL}/api/transaction/add`, {
+            const res = await fetch(`${API_URL}/api/transaction/`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -65,6 +88,9 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
                 transactions: [json.transaction, ...state.transactions],
                 loading: false,
             }));
+
+            // 🔹 Refresh total balance after adding
+            get().getTotalBalance();
             return true;
         } catch (err: any) {
             set({ error: err.message, loading: false });
@@ -92,11 +118,13 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             const json = await res.json();
             if (!res.ok) throw new Error(json.message || "Failed to update");
 
-            // Update local state
             set((state) => ({
                 transactions: state.transactions.map((t) => (t._id === id ? json.transaction : t)),
                 loading: false,
             }));
+
+            // 🔹 Refresh total balance after update
+            get().getTotalBalance();
             return true;
         } catch (err: any) {
             set({ error: err.message, loading: false });
@@ -120,11 +148,13 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             const json = await res.json();
             if (!res.ok) throw new Error(json.message || "Failed to delete");
 
-            // Remove from local state
             set((state) => ({
                 transactions: state.transactions.filter((t) => t._id !== id),
                 loading: false,
             }));
+
+            // 🔹 Refresh total balance after delete
+            get().getTotalBalance();
             return true;
         } catch (err: any) {
             set({ error: err.message, loading: false });

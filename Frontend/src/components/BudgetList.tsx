@@ -1,104 +1,234 @@
-import React, { useState, useEffect } from "react";
-import { View, Text, FlatList, TouchableOpacity, Alert, StyleSheet } from "react-native";
+import React, { useState, useEffect, useMemo } from "react";
+import {
+    View,
+    Text,
+    FlatList,
+    TouchableOpacity,
+    StyleSheet,
+    Alert,
+    Dimensions,
+    TextInput,
+    ActivityIndicator,
+} from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context"; // 🔹 Precise safe area
 import { useBudgetStore } from "../store/budgetStore";
 import BudgetCard from "./BudgetCard";
 import { BudgetFormModal } from "./BudgetFormModal";
 import { Ionicons } from "@expo/vector-icons";
 
+const { width } = Dimensions.get("window");
 
 const BudgetList = () => {
-    const { budgets, fetchBudgets, deleteBudget } = useBudgetStore();
+    const insets = useSafeAreaInsets(); // 🔹 Get exact system insets
+    const { budgets, fetchBudgets, fetchBudgetItems, deleteBudget } = useBudgetStore();
     const [showModal, setShowModal] = useState(false);
     const [editBudget, setEditBudget] = useState<any>(null);
+    const [searchQuery, setSearchQuery] = useState("");
+    const [isInitialSync, setIsInitialSync] = useState(true);
+
+    const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const selectionMode = selectedIds.length > 0;
 
     useEffect(() => {
-        fetchBudgets();
+        const syncAppData = async () => {
+            try {
+                await fetchBudgets();
+                const currentBudgets = useBudgetStore.getState().budgets;
+                await Promise.all(
+                    currentBudgets.map(budget => 
+                        budget._id ? fetchBudgetItems(budget._id) : Promise.resolve()
+                    )
+                );
+            } catch (err) {
+                console.error("Critical Sync Error:", err);
+            } finally {
+                setIsInitialSync(false);
+            }
+        };
+        syncAppData();
     }, []);
 
-    const handleDelete = (id: string) => {
-        Alert.alert("Delete Budget", "Are you sure you want to delete this budget?", [
-            { text: "Cancel", style: "cancel" },
-            { text: "Delete", style: "destructive", onPress: () => deleteBudget(id) },
-        ]);
-    };
+    const filteredBudgets = useMemo(() => {
+        const list = [...budgets].reverse();
+        if (!searchQuery) return list;
+        return list.filter(b => b.title.toLowerCase().includes(searchQuery.toLowerCase()));
+    }, [budgets, searchQuery]);
+
+    if (isInitialSync) {
+        return (
+            <View style={styles.loaderContainer}>
+                <ActivityIndicator size="large" color="#f59e0b" />
+                <Text style={styles.loaderText}>Syncing Budget Vault...</Text>
+            </View>
+        );
+    }
 
     return (
-        <View style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.heading}>Budget List</Text>
-                <TouchableOpacity
-                    style={styles.addButton}
-                    onPress={() => {
-                        setEditBudget(null);
-                        setShowModal(true);
-                    }}
-                >
-                    <Text style={styles.addText}>+</Text>
-                    <Ionicons
-                        name="folder"
-                        size={28}
-                        color="#032642ff"
-                    />
-                    
+        <View style={styles.page}>
+            {/* 🔹 Header: Uses insets.top for pixel-perfect spacing */}
+            <View style={[styles.headerWrapper, { paddingTop: insets.top > 0 ? insets.top : 20 }]}>
+                {selectionMode ? (
+                    <View style={styles.selectionHeader}>
+                        <TouchableOpacity onPress={() => setSelectedIds([])}>
+                            <Ionicons name="close" size={28} color="#0e0057" />
+                        </TouchableOpacity>
+                        <Text style={styles.selectionText}>{selectedIds.length} SELECTED</Text>
+                        <TouchableOpacity 
+                            onPress={() => {
+                                Alert.alert("Delete", "Delete folders?", [
+                                    { text: "No" },
+                                    { text: "Yes", onPress: async () => {
+                                        for (const id of selectedIds) await deleteBudget(id);
+                                        setSelectedIds([]);
+                                    }}
+                                ]);
+                            }} 
+                            style={styles.trashBtn}
+                        >
+                            <Ionicons name="trash-outline" size={22} color="#ef4444" />
+                        </TouchableOpacity>
+                    </View>
+                ) : (
+                    <>
+                        <View style={styles.topRow}>
+                            <View>
+                                <Text style={styles.preTitle}>PLANNING CENTER</Text>
+                                <Text style={styles.mainTitle}>Budgets</Text>
+                            </View>
+                            <TouchableOpacity
+                                style={styles.addBtn}
+                                onPress={() => { setEditBudget(null); setShowModal(true); }}
+                            >
+                                <Ionicons name="add-circle" size={48} color="#f59e0b" />
+                            </TouchableOpacity>
+                        </View>
 
-                </TouchableOpacity>
+                        <View style={styles.searchContainer}>
+                            <Ionicons name="search" size={18} color="#94a3b8" />
+                            <TextInput
+                                style={styles.searchInput}
+                                placeholder="Search folders..."
+                                placeholderTextColor="#94a3b8"
+                                value={searchQuery}
+                                onChangeText={setSearchQuery}
+                            />
+                        </View>
+                    </>
+                )}
             </View>
 
             <FlatList
-                data={[...budgets].reverse()}
+                data={filteredBudgets}
                 keyExtractor={(item) => item._id!}
+                contentContainerStyle={[styles.list, { paddingBottom: insets.bottom + 20 }]}
+                showsVerticalScrollIndicator={false}
                 renderItem={({ item }) => (
                     <BudgetCard
                         budget={item}
-                        onEdit={(budget) => {
-                            setEditBudget(budget);
-                            setShowModal(true);
-                        }}
-                        onDelete={(id) => handleDelete(id)}
+                        isSelected={selectedIds.includes(item._id!)}
+                        selectionMode={selectionMode}
+                        onPress={() => selectionMode ? setSelectedIds(prev => prev.includes(item._id!) ? prev.filter(i => i !== item._id) : [...prev, item._id!]) : null}
+                        onLongPress={() => setSelectedIds([item._id!])}
+                        onEdit={(b: any) => { setEditBudget(b); setShowModal(true); }}
+                        onDelete={deleteBudget}
                     />
                 )}
-                contentContainerStyle={styles.listContainer}
             />
-
-
 
             <BudgetFormModal
                 visible={showModal}
-                onClose={() => setShowModal(false)}
+                editingBudget={editBudget}
+                onClose={() => { setShowModal(false); setEditBudget(null); }}
             />
         </View>
     );
 };
 
 const styles = StyleSheet.create({
-    container: {
+    page: { 
+        flex: 1, 
+        backgroundColor: "#fcfcfc" 
+    },
+    loaderContainer: {
         flex: 1,
-        backgroundColor: "#F9FAFB",
-        padding:2
+        justifyContent: 'center',
+        alignItems: 'center',
     },
-    header: {
-        flexDirection: "row",
-        justifyContent: "space-between",
-        marginBottom: 6,
-        alignItems: "center"
+    loaderText: {
+        marginTop: 15,
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#94a3b8',
+        letterSpacing: 2,
     },
-    heading: {
-        fontSize: 18,
-        fontWeight: "600",
-        color: "#111827"
+    headerWrapper: {
+        paddingHorizontal: width * 0.05,
+        paddingBottom: 15,
+        backgroundColor: '#fff',
+        // 🔹 Crisp subtle shadow instead of heavy border
+        borderBottomWidth: 1,
+        borderBottomColor: '#f1f5f9',
     },
-    addButton: {
-        paddingVertical: 6,
-        paddingHorizontal: 10,
-        borderRadius: 6,
-        flexDirection: "row"
+    topRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        marginTop: 5,
     },
-    addText: {
-        color: "#000",
-        fontWeight: "600"
+    preTitle: {
+        fontSize: 10,
+        fontWeight: '800',
+        color: '#94a3b8',
+        letterSpacing: 2,
     },
-    listContainer: {
-        paddingBottom: 40
+    mainTitle: {
+        fontSize: 28,
+        fontWeight: '900',
+        color: '#0e0057',
+        letterSpacing: -1,
+    },
+    searchContainer: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        backgroundColor: '#f1f5f9',
+        borderRadius: 12,
+        paddingHorizontal: 12,
+        height: 44,
+        marginTop: 15,
+    },
+    searchInput: {
+        flex: 1,
+        marginLeft: 10,
+        fontSize: 14,
+        fontWeight: '600',
+        color: '#0e0057',
+    },
+    selectionHeader: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        height: 50,
+    },
+    selectionText: {
+        fontSize: 16,
+        fontWeight: '900',
+        color: '#0e0057',
+    },
+    trashBtn: {
+        backgroundColor: '#fee2e2',
+        padding: 10,
+        borderRadius: 12,
+    },
+    addBtn: {
+        shadowColor: "#f59e0b",
+        shadowOffset: { width: 0, height: 4 },
+        shadowOpacity: 0.3,
+        shadowRadius: 5,
+        elevation: 6,
+    },
+    list: {
+        paddingHorizontal: width * 0.05,
+        paddingTop: 20,
     },
 });
 

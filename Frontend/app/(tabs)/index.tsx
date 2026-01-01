@@ -1,7 +1,6 @@
 import React from "react";
-import { Text, View, StyleSheet, TouchableOpacity, ScrollView } from "react-native";
+import { StyleSheet, View, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Ionicons } from "@expo/vector-icons";
 import { useAuthStore } from "@/store/authStore";
 import UserDetails from "@/src/components/UserDetails";
 import DashCard from "@/src/components/DashCard";
@@ -14,12 +13,20 @@ export default function Index() {
 
   return (
     <SafeAreaView style={styles.safeArea}>
-      <ScrollView>
-        <UserDetails />
+      <UserDetails />
+
+      <ScrollView
+        showsVerticalScrollIndicator={false}
+        contentContainerStyle={styles.scrollContent}
+      >
+        <View style={styles.spacing} />
+
         <DashCard />
-        <Statistic/>
-        <Savings/>
-        <Transaction/>
+        <Statistic />
+        <Savings />
+        <Transaction />
+
+        <View style={{ height: 30 }} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -30,5 +37,10 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#f4fafb",
   },
-
+  scrollContent: {
+    paddingBottom: 20,
+  },
+  spacing: {
+    height: 10,
+  }
 });

@@ -1,26 +1,24 @@
 import { create } from "zustand";
-import axios from "axios";
 import { auth } from "@/services/firebase";
 import { getIdToken } from "firebase/auth";
 
-interface BudgetItem {
-    budgetId:string;
+export interface BudgetItem {
     _id?: string;
+    budgetId?: string;
     title: string;
-    description?:string;
+    description?: string;
     amount: number;
-    spentAmount:number;
+    spentAmount: number;
 }
 
-interface Budget {
+export interface Budget {
     _id?: string;
     title: string;
     description?: string;
     targetAmount?: number;
-    currentAmount?: number;
-    startDate?: string;
-    endDate?: string;
-    status: "active" | "completed" | "cancelled";
+    actualAmount?: number;
+    date?: string;
+    status?: "active" | "completed" | "cancelled";
     items?: BudgetItem[];
 }
 
@@ -30,11 +28,12 @@ interface BudgetStore {
     error: string | null;
 
     fetchBudgets: () => Promise<void>;
+    fetchBudgetItems: (budgetId:string) => Promise<void>;
     createBudget: (data: Partial<Budget>) => Promise<void>;
-    addBudgetItem: (budgetId: string, item: BudgetItem) => Promise<void>;
     updateBudget: (budgetId: string, data: Partial<Budget>) => Promise<void>;
-    updateBudgetItem: (budgetId: string, itemId:string, data: Partial<Budget>) => Promise<void>;
     deleteBudget: (budgetId: string) => Promise<void>;
+    addBudgetItem: (budgetId: string, item: BudgetItem) => Promise<void>;
+    updateBudgetItem: (budgetId: string, itemId: string, data: Partial<BudgetItem>) => Promise<void>;
     deleteBudgetItem: (budgetId: string, itemId: string) => Promise<void>;
 }
 
@@ -50,20 +49,18 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
         try {
             const currentUser = auth.currentUser;
             if (!currentUser) throw new Error("Not authenticated");
-
             const token = await getIdToken(currentUser);
 
             const res = await fetch(`${API_URL}/api/budget?userId=${currentUser.uid}`, {
                 method: "GET",
-                headers: { 
+                headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
             });
             const json = await res.json();
-            if (!res.ok) throw new Error(json.message || "Failed to fetch savings");
-
-            set({ budgets: json.data, loading: false });
+            if (!res.ok) throw new Error(json.message || "Failed to fetch");
+            set({ budgets: json.data || [], loading: false });
         } catch (err: any) {
             set({ error: err.message, loading: false });
         }
@@ -74,25 +71,19 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
         try {
             const currentUser = auth.currentUser;
             if (!currentUser) throw new Error("Not authenticated");
-
             const token = await getIdToken(currentUser);
 
-            console.log('budgetdata=', budgetData)
             const res = await fetch(`${API_URL}/api/budget`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({
-                    ...budgetData,
-                    userId: currentUser.uid,
-                }),
+                body: JSON.stringify({ ...budgetData, userId: currentUser.uid }),
             });
-            console.log('budgetres',res)
             const data = await res.json();
-            
-            
+            if (!res.ok) throw new Error(data.message || "Failed to create");
+
             set((state) => ({
                 budgets: [...state.budgets, data.data],
                 loading: false,
@@ -107,51 +98,37 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
         try {
             const currentUser = auth.currentUser;
             if (!currentUser) throw new Error("Not authenticated");
-
             const token = await getIdToken(currentUser);
 
-            // ✅ Correct endpoint and request body based on controller
             const res = await fetch(`${API_URL}/api/budgetItem`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({
-                    ...item, 
-                    budgetId,
-                }),
+                body: JSON.stringify({ ...item, budgetId }),
             });
-            console.log(res)
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message || "Failed to add budget item");
-
-            // ✅ Correctly update local state
-            const newItem = data.data;
+            if (!res.ok) throw new Error(data.message || "Failed to add item");
 
             const updatedBudgets = get().budgets.map((b) =>
                 b._id === budgetId
-                    ? {
-                        ...b,
-                        items: b.items ? [...b.items, newItem] : [newItem],
-                    }
+                    ? { ...b, items: b.items ? [...b.items, data.data] : [data.data] }
                     : b
             );
 
             set({ budgets: updatedBudgets, loading: false });
         } catch (err: any) {
-            console.log("addBudgetItem error:", err);
             set({ error: err.message, loading: false });
         }
     },
 
-    updateBudgetItem: async (budgetId:any, itemId:any, updates:any) => {
+    updateBudgetItem: async (budgetId, itemId, updates) => {
         set({ loading: true, error: null });
         try {
             const currentUser = auth.currentUser;
             if (!currentUser) throw new Error("Not authenticated");
-
             const token = await getIdToken(currentUser);
 
             const res = await fetch(`${API_URL}/api/budgetItem/${itemId}`, {
@@ -160,67 +137,49 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify({
-                    budgetId,
-                    ...updates, // e.g., title, description, amount, spentAmount
-                }),
+                body: JSON.stringify({ budgetId, ...updates }),
             });
 
             const data = await res.json();
-            if (!res.ok) throw new Error(data.message || "Failed to update budget item");
+            if (!res.ok) throw new Error(data.message || "Failed to update item");
 
-            const updatedItem = data.data;
-
-            // ✅ Update the local state correctly
             const updatedBudgets = get().budgets.map((b) =>
                 b._id === budgetId
                     ? {
                         ...b,
-                        items: b.items?.map((i) =>
-                            i._id === itemId ? updatedItem : i
-                        ),
+                        items: b.items?.map((i) => (i._id === itemId ? data.data : i)),
                     }
                     : b
             );
 
             set({ budgets: updatedBudgets, loading: false });
         } catch (err: any) {
-            console.error("updateBudgetItem error:", err);
             set({ error: err.message, loading: false });
         }
     },
 
-    deleteBudgetItem: async (budgetId: any, itemId: any) => {
+    deleteBudgetItem: async (budgetId, itemId) => {
         set({ loading: true, error: null });
         try {
             const currentUser = auth.currentUser;
             if (!currentUser) throw new Error("Not authenticated");
-
             const token = await getIdToken(currentUser);
 
             const res = await fetch(`${API_URL}/api/budgetItem/${itemId}`, {
                 method: "DELETE",
-                headers: {
-                    Authorization: `Bearer ${token}`,
-                },
+                headers: { Authorization: `Bearer ${token}` },
             });
 
-            const data = await res.json();
-            if (!res.ok) throw new Error(data.message || "Failed to delete budget item");
+            if (!res.ok) throw new Error("Failed to delete item");
 
-            // ✅ Remove deleted item from local state
             const updatedBudgets = get().budgets.map((b) =>
                 b._id === budgetId
-                    ? {
-                        ...b,
-                        items: b.items?.filter((i) => i._id !== itemId),
-                    }
+                    ? { ...b, items: b.items?.filter((i) => i._id !== itemId) }
                     : b
             );
 
             set({ budgets: updatedBudgets, loading: false });
         } catch (err: any) {
-            console.error("deleteBudgetItem error:", err);
             set({ error: err.message, loading: false });
         }
     },
@@ -228,12 +187,22 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
     updateBudget: async (budgetId, data) => {
         set({ loading: true, error: null });
         try {
-            const res = await axios.put(
-                `${API_URL}/api/budget/${budgetId}`,
-                data
-            );
+            const currentUser = auth.currentUser;
+            if (!currentUser) throw new Error("Not authenticated");
+            const token = await getIdToken(currentUser);
+
+            const res = await fetch(`${API_URL}/api/budget/${budgetId}`, {
+                method: "PUT",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+                body: JSON.stringify(data),
+            });
+            const json = await res.json();
+
             const updatedBudgets = get().budgets.map((b) =>
-                b._id === budgetId ? res.data : b
+                b._id === budgetId ? json.data : b
             );
             set({ budgets: updatedBudgets, loading: false });
         } catch (err: any) {
@@ -244,11 +213,49 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
     deleteBudget: async (budgetId) => {
         set({ loading: true, error: null });
         try {
-            await axios.delete(`${API_URL}/api/budget/${budgetId}`);
+            const currentUser = auth.currentUser;
+            if (!currentUser) throw new Error("Not authenticated");
+            const token = await getIdToken(currentUser);
+
+            await fetch(`${API_URL}/api/budget/${budgetId}`, {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
             set({
                 budgets: get().budgets.filter((b) => b._id !== budgetId),
                 loading: false,
             });
+        } catch (err: any) {
+            set({ error: err.message, loading: false });
+        }
+    },
+
+    fetchBudgetItems: async (budgetId:string) => {
+        console.log('called')
+        set({ loading: true });
+        try {
+            const currentUser = auth.currentUser;
+            if (!currentUser) return;
+            const token = await getIdToken(currentUser);
+
+            const res = await fetch(`${API_URL}/api/budgetItem/${budgetId}`, {
+                method: "GET",
+                headers: {
+                    "Content-Type": "application/json",
+                    Authorization: `Bearer ${token}`,
+                },
+            });
+            console.log('budgetitems=',res)
+            const json = await res.json();
+            if (!res.ok) throw new Error(json.message);
+
+            set((state) => ({
+                budgets: state.budgets.map((b) =>
+                    b._id === budgetId ? { ...b, items: json.data } : b
+                ),
+                loading: false,
+            }));
         } catch (err: any) {
             set({ error: err.message, loading: false });
         }
