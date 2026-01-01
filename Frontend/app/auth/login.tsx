@@ -31,7 +31,7 @@ const Login = () => {
 
     useEffect(() => {
         if (error) {
-            console.log("Auth Error:", error);
+            console.error("Auth Error:", error);
         }
     }, [error]);
 

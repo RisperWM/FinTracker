@@ -16,7 +16,7 @@ function authenticate(req: any, res: any, next: any) {
             next();
         })
         .catch((error:any) => {
-            console.log("🔥 verifyIdToken error:", error);
+            console.error("🔥 verifyIdToken error:", error);
             res.status(401).json({ message: "Unauthorized error", error: error.message });
         });
 

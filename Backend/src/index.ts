@@ -13,7 +13,7 @@ const app = express();
 const cors = require("cors");
 app.use(express.json());
 
-app.use(cors({ origin: "*" })); // for testing
+app.use(cors({ origin: "*" }));
 
 const MONGO_URI = process.env.MONGO_URI;
 // Routes
@@ -39,4 +39,4 @@ mongoose
         console.log("MongoDB connected");
         app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
     })
-    .catch((err:any) => console.log(err));
+    .catch((err:any) => console.error(err));

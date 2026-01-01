@@ -42,14 +42,11 @@ const createBudget = async (req: any, res: any) => {
             currentAmount: 0,
         });
 
-        console.log('budget=',budget)
-
         await budget.save();
         res.status(201).json({ success: true, data: budget });
-        console.log('budget created')
     } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
-        console.log(error.message)
+        console.error(error.message)
     }
 };
 

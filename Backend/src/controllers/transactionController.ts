@@ -35,11 +35,9 @@ const getTransactions = async (req: any, res: any) => {
         }
 
         const transactions = await Transaction.find(filter).sort({ date: -1 });
-        console.log(transactions)
 
         res.status(200).json({ success: true, transactions });
     } catch (err: any) {
-        console.log(err)
         res.status(500).json({ success: false, message: err.message });
     }
 };

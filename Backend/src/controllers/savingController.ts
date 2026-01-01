@@ -110,12 +110,10 @@ const createSaving = async (req: any, res: any) => {
 
 const depositToSaving = async (req: any, res: any) => {
     try {
-        console.log("Deposit request body:", req.body);
 
         const {amount } = req.body;
-        const userId = req.user.uid; // 🔑 Firebase UID from auth middleware
+        const userId = req.user.uid;
         const saving = await Saving.findById(req.params.id);
-        console.log("Fetched saving:", saving);
 
         if (!saving) {
             console.error("Saving plan not found");
@@ -128,16 +126,13 @@ const depositToSaving = async (req: any, res: any) => {
 
         // Increase saving amount
         saving.currentAmount += amount;
-        console.log("Updated saving amount:", saving.currentAmount);
 
         // Check if goal reached
         if (saving.targetAmount && saving.currentAmount >= saving.targetAmount) {
             saving.status = "completed";
-            console.log("Saving goal reached. Status set to completed.");
         }
 
         await saving.save();
-        console.log("Saving saved successfully.");
 
         // Create transaction: deduct from balance
         const transaction = await Transaction.create({
@@ -149,7 +144,6 @@ const depositToSaving = async (req: any, res: any) => {
             date: new Date(),
             goalId: saving._id,
         });
-        console.log("Transaction created:", transaction);
 
         res.json({ success: true, data: saving });
     } catch (err: any) {
@@ -160,12 +154,10 @@ const depositToSaving = async (req: any, res: any) => {
 
 const withdrawFromSaving = async (req: any, res: any) => {
     try {
-        console.log("Withdraw request body:", req.body);
 
         const { amount } = req.body;
-        const userId = req.user.uid; // 🔑 Firebase UID from auth middleware
+        const userId = req.user.uid;
         const saving = await Saving.findById(req.params.id);
-        console.log("Fetched saving:", saving);
 
         if (!saving) {
             console.error("Saving plan not found");
@@ -182,16 +174,13 @@ const withdrawFromSaving = async (req: any, res: any) => {
 
         // Decrease saving amount
         saving.currentAmount -= amount;
-        console.log("Updated saving amount after withdrawal:", saving.currentAmount);
 
         // Reopen completed saving if funds drop below target
         if (saving.targetAmount && saving.currentAmount < saving.targetAmount && saving.status === "completed") {
             saving.status = "active";
-            console.log("Saving reopened (active) as amount dropped below target.");
         }
 
         await saving.save();
-        console.log("Saving saved successfully after withdrawal.");
 
         // Create transaction: add to balance
         const transaction = await Transaction.create({
@@ -203,7 +192,6 @@ const withdrawFromSaving = async (req: any, res: any) => {
             date: new Date(),
             goalId: saving._id,
         });
-        console.log("Transaction created:", transaction);
 
         res.json({ success: true, data: saving });
     } catch (err: any) {

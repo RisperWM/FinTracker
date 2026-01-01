@@ -27,7 +27,6 @@ const createBudgetItem = async (req: any, res: any) => {
             spentAmount,
         });
         await item.save();
-        console.log(item)
 
         // 🔍 Check user settings
         const userSettings = await UserSettings.findOne({ userId });
@@ -49,7 +48,6 @@ const createBudgetItem = async (req: any, res: any) => {
 
         res.status(201).json({ success: true, data: item });
     } catch (error: any) {
-        console.log(error)
         console.error("createBudgetItem error:", error);
         res.status(500).json({ success: false, message: error.message });
     }
@@ -88,7 +86,6 @@ const deleteBudgetItem = async (req: any, res: any) => {
             message: "Item deleted successfully"
         });
     } catch (error: any) {
-        console.log("Delete Error:", error);
         res.status(500).json({
             success: false,
             message: error.message

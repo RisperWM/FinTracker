@@ -93,7 +93,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             set({ user: json, loading: false, isHydrated: true });
             await AsyncStorage.setItem("user", JSON.stringify(json));
         } catch (err: any) {
-            console.log("Auth getUser Error:", err.message);
+            console.error("Auth getUser Error:", err.message);
             set({ error: err.message, loading: false, isHydrated: true });
         }
     },

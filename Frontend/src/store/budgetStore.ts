@@ -232,7 +232,6 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
     },
 
     fetchBudgetItems: async (budgetId:string) => {
-        console.log('called')
         set({ loading: true });
         try {
             const currentUser = auth.currentUser;
@@ -246,7 +245,6 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
                     Authorization: `Bearer ${token}`,
                 },
             });
-            console.log('budgetitems=',res)
             const json = await res.json();
             if (!res.ok) throw new Error(json.message);
 

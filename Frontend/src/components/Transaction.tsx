@@ -31,7 +31,7 @@ const Transaction = () => {
         if (isSelectionMode) {
             toggleSelection(item._id);
         } else {
-            console.log("Edit item", item._id);
+            console.error("Edit item", item._id);
         }
     };
 

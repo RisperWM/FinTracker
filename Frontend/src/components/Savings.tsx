@@ -59,7 +59,7 @@ const Savings = () => {
                 await createSaving(newSaving);
                 fetchSavings();
             } catch (err: any) {
-                console.log("Savings Error", err.message);
+                console.error("Savings Error", err.message);
             }
         },
         [createSaving, fetchSavings]
@@ -80,7 +80,7 @@ const Savings = () => {
             setDepositAmount("");
             fetchSavings();
         } catch (err: any) {
-            console.log("Error", err.message);
+            console.error("Error", err.message);
         }
     }, [selectedSavingId, depositAmount, depositType, user, depositToSaving, withdrawFromSaving, fetchSavings]);
 
