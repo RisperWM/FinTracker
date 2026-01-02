@@ -50,7 +50,6 @@ export const BudgetItemList: React.FC<Props> = ({ budgetId }) => {
     // Data Logic
     const budget = useMemo(() => budgets.find((b) => b._id === budgetId), [budgets, budgetId]);
 
-    // 🔹 Advanced Filtering Logic
     const items = useMemo(() => {
         const baseItems = (budget?.items || []).filter(i => i && i._id);
         if (!searchQuery.trim()) return baseItems;
@@ -60,8 +59,6 @@ export const BudgetItemList: React.FC<Props> = ({ budgetId }) => {
         );
     }, [budget, searchQuery]);
 
-    // --- Handlers ---
-
     const handleAdd = () => {
         setSelectedItem(null);
         setShowFormModal(true);
@@ -69,7 +66,7 @@ export const BudgetItemList: React.FC<Props> = ({ budgetId }) => {
 
     const toggleSearch = () => {
         setIsSearching(!isSearching);
-        if (isSearching) setSearchQuery(""); // Clear search on close
+        if (isSearching) setSearchQuery("");
     };
 
     const handleBatchDelete = () => {

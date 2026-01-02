@@ -7,6 +7,8 @@ const savingsRoutes = require("./routes/savingsRoutes")
 const budgetRoutes = require("./routes/budgetRoutes")
 const budgetItemRoutes = require("./routes/budgetItemRoutes")
 const userSettingsRoutes = require("./routes/userSettingRoutes")
+const habitRoutes = require("./routes/habitRoutes")
+const habitLogRoutes = require("./routes/habitLogRoutes")
 require("dotenv").config();
 
 const app = express();
@@ -23,6 +25,8 @@ app.use("/api/savings", savingsRoutes);
 app.use("/api/budget", budgetRoutes);
 app.use("/api/budgetItem", budgetItemRoutes);
 app.use("/api/userSettings", userSettingsRoutes);
+app.use('/api/habit', habitRoutes);
+app.use('/api/habitLogs', habitLogRoutes);
 
 
 

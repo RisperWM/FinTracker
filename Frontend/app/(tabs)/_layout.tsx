@@ -9,29 +9,18 @@ import { PIN_KEY } from "@/security/pin";
 
 const { width: SCREEN_WIDTH } = Dimensions.get("window");
 
-// 🔹 Tightened Background Component
+// 🔹 Custom Background Component for the "Hill" Effect
 const TabBg = ({ color = "#0e0057" }) => {
-    const centerX = SCREEN_WIDTH / 2;
-    // 🔹 Reduced curveWidth to make the "hill" tighter
-    const curveWidth = 55;
-    const curveHeight = 38;
-
-    const d = [
-        `M 0 0`,
-        `L ${centerX - curveWidth} 0`,
-        // The control points are pulled closer to the center for a sharper, crisper curve
-        `C ${centerX - curveWidth + 15} 0, ${centerX - 30} ${curveHeight}, ${centerX} ${curveHeight}`,
-        `C ${centerX + 30} ${curveHeight}, ${centerX + curveWidth - 15} 0, ${centerX + curveWidth} 0`,
-        `L ${SCREEN_WIDTH} 0`,
-        `L ${SCREEN_WIDTH} 100`,
-        `L 0 100`,
-        `Z`
-    ].join(" ");
-
     return (
         <View style={StyleSheet.absoluteFill} pointerEvents="none">
-            <Svg width={SCREEN_WIDTH} height={100} viewBox={`0 0 ${SCREEN_WIDTH} 100`}>
-                <Path fill={color} d={d} />
+            <Svg width={SCREEN_WIDTH} height={Platform.OS === 'ios' ? 95 : 75} viewBox={`0 0 ${SCREEN_WIDTH} 75`}>
+                <Path
+                    fill={color}
+                    d={`M0,0 L${SCREEN_WIDTH * 0.35},0 
+             C${SCREEN_WIDTH * 0.42},0 ${SCREEN_WIDTH * 0.40},35 ${SCREEN_WIDTH * 0.5},35 
+             C${SCREEN_WIDTH * 0.60},35 ${SCREEN_WIDTH * 0.58},0 ${SCREEN_WIDTH * 0.65},0 
+             L${SCREEN_WIDTH},0 L${SCREEN_WIDTH},75 L0,75 Z`}
+                />
             </Svg>
         </View>
     );
@@ -66,17 +55,15 @@ export default function ProtectedTabsLayout() {
                 headerShown: false,
                 tabBarActiveTintColor: "#f59e0b",
                 tabBarInactiveTintColor: "#94a3b8",
-                tabBarLabelStyle: { fontSize: 10, fontWeight: "700", marginBottom: Platform.OS === 'ios' ? 0 : 5 },
+                tabBarLabelStyle: { fontSize: 10, fontWeight: "700" },
+                // 🔹 Use the custom background component
                 tabBarBackground: () => <TabBg />,
                 tabBarStyle: {
-                    backgroundColor: "transparent",
+                    backgroundColor: "transparent", // Must be transparent to see the SVG hill
                     borderTopWidth: 0,
                     position: "absolute",
                     elevation: 0,
-                    height: Platform.OS === "ios" ? 85 : 65,
-                    bottom: 0,
-                    left: 0,
-                    right: 0,
+                    height: Platform.OS === "ios" ? 90 : 70,
                 },
             }}
         >
@@ -100,6 +87,7 @@ export default function ProtectedTabsLayout() {
                 }}
             />
 
+            {/* 🔹 CENTER BUTTON (FAB) */}
             <Tabs.Screen
                 name="quick/index"
                 options={{
@@ -147,24 +135,25 @@ export default function ProtectedTabsLayout() {
 
 const styles = StyleSheet.create({
     centerButton: {
-        top: -22,
+        top: -18,
         justifyContent: "center",
         alignItems: "center",
-        width: SCREEN_WIDTH / 5,
+        width: SCREEN_WIDTH / 5, // Responsive width
     },
     centerIcon: {
-        width: 60,
-        height: 60,
-        borderRadius: 30,
+        width: 62,
+        height: 62,
+        borderRadius: 31,
         backgroundColor: "#f59e0b",
         justifyContent: "center",
         alignItems: "center",
+        // Premium Shadow
         shadowColor: "#f59e0b",
-        shadowOffset: { width: 0, height: 4 },
+        shadowOffset: { width: 0, height: 6 },
         shadowOpacity: 0.4,
-        shadowRadius: 8,
+        shadowRadius: 10,
         elevation: 10,
-        borderWidth: 5,
-        borderColor: "#fcfcfc",
+        borderWidth: 6,
+        borderColor: "#f4fafb",
     },
 });

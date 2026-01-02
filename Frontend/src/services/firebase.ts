@@ -15,8 +15,9 @@ const firebaseConfig = {
     storageBucket: "fintracker-88ba5.firebasestorage.app",
     messagingSenderId: "759272994615",
     appId: "1:759272994615:web:ed4e460f41c220577eccb2",
-    measurementId: "G-59R29LTE86",
+    measurementId: "G-59R29LTE86"
 };
+
 
 const app = getApps().length === 0 ? initializeApp(firebaseConfig) : getApp();
 
@@ -27,7 +28,6 @@ try {
         persistence: getReactNativePersistence(AsyncStorage),
     });
 } catch (e: any) {
-    // if already initialized, fallback to getAuth
     auth = getAuth(app);
 }
 
