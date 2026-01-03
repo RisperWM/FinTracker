@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { auth } from "@/services/firebase";
 import { getIdToken } from "firebase/auth";
+import { API_URL } from "../security/constants";
+
 
 export interface BudgetItem {
     _id?: string;
@@ -37,7 +39,6 @@ interface BudgetStore {
     deleteBudgetItem: (budgetId: string, itemId: string) => Promise<void>;
 }
 
-const API_URL = "http://192.168.0.24:5000";
 
 export const useBudgetStore = create<BudgetStore>((set, get) => ({
     budgets: [],
@@ -51,7 +52,7 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
             if (!currentUser) throw new Error("Not authenticated");
             const token = await getIdToken(currentUser);
 
-            const res = await fetch(`${API_URL}/api/budget?userId=${currentUser.uid}`, {
+            const res = await fetch(`${API_URL}api/budget?userId=${currentUser.uid}`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -73,7 +74,7 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
             if (!currentUser) throw new Error("Not authenticated");
             const token = await getIdToken(currentUser);
 
-            const res = await fetch(`${API_URL}/api/budget`, {
+            const res = await fetch(`${API_URL}api/budget`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -100,7 +101,7 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
             if (!currentUser) throw new Error("Not authenticated");
             const token = await getIdToken(currentUser);
 
-            const res = await fetch(`${API_URL}/api/budgetItem`, {
+            const res = await fetch(`${API_URL}api/budgetItem`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -131,7 +132,7 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
             if (!currentUser) throw new Error("Not authenticated");
             const token = await getIdToken(currentUser);
 
-            const res = await fetch(`${API_URL}/api/budgetItem/${itemId}`, {
+            const res = await fetch(`${API_URL}api/budgetItem/${itemId}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -165,7 +166,7 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
             if (!currentUser) throw new Error("Not authenticated");
             const token = await getIdToken(currentUser);
 
-            const res = await fetch(`${API_URL}/api/budgetItem/${itemId}`, {
+            const res = await fetch(`${API_URL}api/budgetItem/${itemId}`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -191,7 +192,7 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
             if (!currentUser) throw new Error("Not authenticated");
             const token = await getIdToken(currentUser);
 
-            const res = await fetch(`${API_URL}/api/budget/${budgetId}`, {
+            const res = await fetch(`${API_URL}api/budget/${budgetId}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -217,7 +218,7 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
             if (!currentUser) throw new Error("Not authenticated");
             const token = await getIdToken(currentUser);
 
-            await fetch(`${API_URL}/api/budget/${budgetId}`, {
+            await fetch(`${API_URL}api/budget/${budgetId}`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -238,7 +239,7 @@ export const useBudgetStore = create<BudgetStore>((set, get) => ({
             if (!currentUser) return;
             const token = await getIdToken(currentUser);
 
-            const res = await fetch(`${API_URL}/api/budgetItem/${budgetId}`, {
+            const res = await fetch(`${API_URL}api/budgetItem/${budgetId}`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",

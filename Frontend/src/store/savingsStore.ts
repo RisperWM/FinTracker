@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { auth } from "@/services/firebase";
 import { getIdToken } from "firebase/auth";
+import { API_URL } from "../security/constants";
+
 
 export type GoalType = 'saving' | 'loan' | 'debt';
 
@@ -26,7 +28,7 @@ interface SavingsState {
     error: string | null;
 
     // Fetchers
-    fetchAllGoals: () => Promise<void>; // 🔹 Fetch everything combined
+    fetchAllGoals: () => Promise<void>;
     fetchSavings: () => Promise<void>;
     fetchLoans: () => Promise<void>;
     fetchDebts: () => Promise<void>;
@@ -40,7 +42,6 @@ interface SavingsState {
     withdrawFromSaving: (id: string, amount: number) => Promise<void>;
 }
 
-const API_URL = "http://192.168.0.24:5000/api/savings";
 
 const getAuthHeaders = async () => {
     const currentUser = auth.currentUser;
@@ -63,7 +64,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         try {
             const headers = await getAuthHeaders();
             // No type filter = backend returns all types
-            const res = await fetch(`${API_URL}`, { method: "GET", headers });
+            const res = await fetch(`${API_URL}api/savings`, { method: "GET", headers });
             const json = await res.json();
             set({ savings: json.data || [], loading: false });
         } catch (err: any) {
@@ -76,7 +77,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         set({ loading: true, error: null });
         try {
             const headers = await getAuthHeaders();
-            const res = await fetch(`${API_URL}?type=saving`, { method: "GET", headers });
+            const res = await fetch(`${API_URL}api/savings?type=saving`, { method: "GET", headers });
             const json = await res.json();
             set({ savings: json.data || [], loading: false });
         } catch (err: any) {
@@ -88,7 +89,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         set({ loading: true, error: null });
         try {
             const headers = await getAuthHeaders();
-            const res = await fetch(`${API_URL}/loans`, { method: "GET", headers });
+            const res = await fetch(`${API_URL}api/savings/loans`, { method: "GET", headers });
             const json = await res.json();
             set({ savings: json.data || [], loading: false });
         } catch (err: any) {
@@ -100,7 +101,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         set({ loading: true, error: null });
         try {
             const headers = await getAuthHeaders();
-            const res = await fetch(`${API_URL}/debts`, { method: "GET", headers });
+            const res = await fetch(`${API_URL}api/savings/debts`, { method: "GET", headers });
             const json = await res.json();
             set({ savings: json.data || [], loading: false });
         } catch (err: any) {
@@ -114,7 +115,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         try {
             set({ loading: true, error: null });
             const headers = await getAuthHeaders();
-            const res = await fetch(`${API_URL}`, {
+            const res = await fetch(`${API_URL}api/savings`, {
                 method: "POST",
                 headers,
                 body: JSON.stringify(savingData),
@@ -132,11 +133,10 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         }
     },
 
-    // ... rest of the logic (update, delete, deposit, withdraw) remains the same
     updateSaving: async (id, savingData) => {
         try {
             const headers = await getAuthHeaders();
-            const res = await fetch(`${API_URL}/${id}`, {
+            const res = await fetch(`${API_URL}api/savings/${id}`, {
                 method: "PUT",
                 headers,
                 body: JSON.stringify(savingData),
@@ -153,7 +153,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
     deleteSaving: async (id) => {
         try {
             const headers = await getAuthHeaders();
-            await fetch(`${API_URL}/${id}`, { method: "DELETE", headers });
+            await fetch(`${API_URL}api/savings/${id}`, { method: "DELETE", headers });
             set((state) => ({
                 savings: state.savings.filter((s) => s._id !== id),
             }));
@@ -165,7 +165,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
     depositToSaving: async (id, amount) => {
         try {
             const headers = await getAuthHeaders();
-            const res = await fetch(`${API_URL}/${id}/deposit`, {
+            const res = await fetch(`${API_URL}api/savings/${id}/deposit`, {
                 method: "POST",
                 headers,
                 body: JSON.stringify({ amount }),
@@ -182,7 +182,7 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
     withdrawFromSaving: async (id, amount) => {
         try {
             const headers = await getAuthHeaders();
-            const res = await fetch(`${API_URL}/${id}/withdraw`, {
+            const res = await fetch(`${API_URL}api/savings/${id}/withdraw`, {
                 method: "POST",
                 headers,
                 body: JSON.stringify({ amount }),

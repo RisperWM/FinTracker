@@ -7,7 +7,7 @@ export type HabitCategory = 'Career' | 'Education' | 'Spiritual' | 'Health & Wel
 export type HabitFrequency = 'Daily' | 'Weekly' | 'Monthly';
 export type LogStatus = 'Completed' | 'Skipped' | 'Failed';
 
-const API_URL = "http://192.168.0.24:5000";
+import { API_URL } from "../security/constants";
 
 export interface Habit {
     _id: string;
@@ -67,7 +67,7 @@ export const useHabitStore = create<HabitState>((set, get) => ({
         try {
             const config = await getAuthHeaders();
             const userId = auth.currentUser?.uid;
-            const res = await axios.get(`${API_URL}/api/habit?userId=${userId}`, config);
+            const res = await axios.get(`${API_URL}api/habit?userId=${userId}`, config);
             set({ habits: res.data || [], loading: false });
         } catch (err: any) {
             set({ error: err.response?.data?.message || err.message, loading: false });
@@ -80,7 +80,7 @@ export const useHabitStore = create<HabitState>((set, get) => ({
             const config = await getAuthHeaders();
             const userId = auth.currentUser?.uid;
             const payload = { ...habitData, userId };
-            const res = await axios.post(`${API_URL}/api/habit`,payload, config);
+            const res = await axios.post(`${API_URL}api/habit`,payload, config);
             set((state) => ({
                 habits: [res.data, ...state.habits],
                 loading: false
@@ -95,7 +95,7 @@ export const useHabitStore = create<HabitState>((set, get) => ({
     updateHabit: async (id, habitData) => {
         try {
             const config = await getAuthHeaders();
-            const res = await axios.put(`${API_URL}/api/habit/${id}`, habitData, config);
+            const res = await axios.put(`${API_URL}api/habit/${id}`, habitData, config);
             set((state) => ({
                 habits: state.habits.map((h) => (h._id === id ? res.data : h)),
             }));
@@ -107,7 +107,7 @@ export const useHabitStore = create<HabitState>((set, get) => ({
     deleteHabit: async (id) => {
         try {
             const config = await getAuthHeaders();
-            await axios.delete(`${API_URL}/api/habit/${id}`, config);
+            await axios.delete(`${API_URL}api/habit/${id}`, config);
             set((state) => ({
                 habits: state.habits.filter((h) => h._id !== id),
             }));
@@ -119,7 +119,7 @@ export const useHabitStore = create<HabitState>((set, get) => ({
     fetchLogs: async (habitId) => {
         try {
             const config = await getAuthHeaders();
-            const res = await axios.get(`${API_URL}/api/habitLogs/habit/${habitId}`, config);
+            const res = await axios.get(`${API_URL}api/habitLogs/habit/${habitId}`, config);
 
             const logData = Array.isArray(res.data) ? res.data : (res.data.data || []);
 
@@ -139,7 +139,7 @@ export const useHabitStore = create<HabitState>((set, get) => ({
             if (!userId) return;
 
             const payload = { ...logData, userId };
-            const res = await axios.post(`${API_URL}/api/habitLogs`, payload, config);
+            const res = await axios.post(`${API_URL}api/habitLogs`, payload, config);
 
             const savedLog = res.data.data || res.data;
 

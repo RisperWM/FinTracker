@@ -8,8 +8,7 @@ import {
     signOut,
     getIdToken,
 } from "firebase/auth";
-
-const API_URL = "http://192.168.0.24:5000";
+import { API_URL } from "../security/constants";
 
 type UserDetails = {
     _id: string;
@@ -76,7 +75,7 @@ export const useAuthStore = create<AuthState>((set) => ({
 
             const token = await getIdToken(currentUser);
 
-            const res = await fetch(`${API_URL}/api/users/getUser`, {
+            const res = await fetch(`${API_URL}api/users/getUser`, {
                 method: "GET",
                 headers: {
                     "Content-Type": "application/json",
@@ -109,7 +108,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             const firebaseRes = await createUserWithEmailAndPassword(auth, data.email, data.password);
             const token = await getIdToken(firebaseRes.user);
 
-            const res = await fetch(`${API_URL}/api/users/register`, {
+            const res = await fetch(`${API_URL}api/users/register`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -144,7 +143,7 @@ export const useAuthStore = create<AuthState>((set) => ({
             const firebaseRes = await signInWithEmailAndPassword(auth, email, password);
             const token = await getIdToken(firebaseRes.user);
 
-            const res = await fetch(`${API_URL}/api/users/login`, {
+            const res = await fetch(`${API_URL}api/users/login`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",

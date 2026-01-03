@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { getIdToken } from "firebase/auth";
 import { auth } from "@/services/firebase";
+import { API_URL } from "../security/constants";
+
 
 interface UserSettings {
     autoDeductBudgetExpenses: boolean;
@@ -14,7 +16,6 @@ interface UserSettingsState {
     updateSettings: (newSettings: Partial<UserSettings>) => Promise<void>;
 }
 
-const API_URL = "http://192.168.0.24:5000";
 
 export const useUserSettingsStore = create<UserSettingsState>((set) => ({
     settings: null,
@@ -31,7 +32,7 @@ export const useUserSettingsStore = create<UserSettingsState>((set) => ({
 
             const token = await getIdToken(currentUser);
 
-            const res = await fetch(`${API_URL}/settings`, {
+            const res = await fetch(`${API_URL}api/settings`, {
                 method: "GET",
                 headers: {
                     Authorization: `Bearer ${token}`,
@@ -57,7 +58,7 @@ export const useUserSettingsStore = create<UserSettingsState>((set) => ({
 
             const token = await getIdToken(currentUser);
 
-            const res = await fetch(`${API_URL}/settings`, {
+            const res = await fetch(`${API_URL}api/settings`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",

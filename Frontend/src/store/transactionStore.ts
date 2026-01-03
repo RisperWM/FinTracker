@@ -2,7 +2,7 @@ import { create } from "zustand";
 import { auth } from "@/services/firebase";
 import { getIdToken } from "firebase/auth";
 
-const API_URL = "http://192.168.0.24:5000";
+import { API_URL } from "../security/constants";
 
 export type Transaction = {
     _id: string;
@@ -52,7 +52,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             if (!currentUser) return;
             const token = await getIdToken(currentUser);
 
-            const res = await fetch(`${API_URL}/api/transaction/balance?userId=${currentUser.uid}`, {
+            const res = await fetch(`${API_URL}api/transaction/balance?userId=${currentUser.uid}`, {
                 method: "GET",
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -74,7 +74,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             if (!currentUser) throw new Error("Not authenticated");
             const token = await getIdToken(currentUser);
 
-            const res = await fetch(`${API_URL}/api/transaction/`, {
+            const res = await fetch(`${API_URL}api/transaction/`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json",
@@ -108,7 +108,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             if (!currentUser) throw new Error("Not authenticated");
             const token = await getIdToken(currentUser);
 
-            const res = await fetch(`${API_URL}/api/transaction/update/${id}`, {
+            const res = await fetch(`${API_URL}api/transaction/update/${id}`, {
                 method: "PUT",
                 headers: {
                     "Content-Type": "application/json",
@@ -141,7 +141,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             if (!currentUser) throw new Error("Not authenticated");
             const token = await getIdToken(currentUser);
 
-            const res = await fetch(`${API_URL}/api/transaction/delete/${id}`, {
+            const res = await fetch(`${API_URL}api/transaction/delete/${id}`, {
                 method: "DELETE",
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -175,7 +175,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
                 ...(year && { year: year.toString() }),
             });
 
-            const res = await fetch(`${API_URL}/api/transaction?${queryParams.toString()}`, {
+            const res = await fetch(`${API_URL}api/transaction?${queryParams.toString()}`, {
                 method: "GET",
                 headers: { Authorization: `Bearer ${token}` },
             });
@@ -201,7 +201,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             const token = await getIdToken(currentUser);
 
             const res = await fetch(
-                `${API_URL}/api/transaction/dashboard?userId=${currentUser.uid}&month=${month}&year=${year}`,
+                `${API_URL}api/transaction/dashboard?userId=${currentUser.uid}&month=${month}&year=${year}`,
                 {
                     method: "GET",
                     headers: { Authorization: `Bearer ${token}` },

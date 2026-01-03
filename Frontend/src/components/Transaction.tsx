@@ -5,11 +5,9 @@ import { useAuthStore } from "@/store/authStore";
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import TransactionCard from "./TransactionCard";
+import { AddTransactionPopup } from "./addTransaction";
 
-// 🔹 Get screen dimensions for responsiveness
 const { width } = Dimensions.get("window");
-
-// 🔹 Responsive scaling helper (scales based on a standard 375px width screen)
 const scale = (size: number) => (width / 375) * size;
 
 const Transaction = () => {
@@ -17,6 +15,9 @@ const Transaction = () => {
     const user = useAuthStore((state) => state.user);
 
     const [selectedIds, setSelectedIds] = useState<string[]>([]);
+    const [editModalVisible, setEditModalVisible] = useState(false);
+    const [itemToEdit, setItemToEdit] = useState<any>(null);
+
     const isSelectionMode = selectedIds.length > 0;
 
     useEffect(() => {
@@ -27,11 +28,16 @@ const Transaction = () => {
 
     const recentTransactions = transactions.slice(0, 4);
 
+    const triggerEdit = (item: any) => {
+        setItemToEdit(item);
+        setEditModalVisible(true);
+    };
+
     const handlePress = (item: any) => {
         if (isSelectionMode) {
             toggleSelection(item._id);
         } else {
-            console.error("Edit item", item._id);
+            triggerEdit(item);
         }
     };
 
@@ -72,6 +78,14 @@ const Transaction = () => {
 
                 {isSelectionMode ? (
                     <View style={styles.actionRow}>
+                        {selectedIds.length === 1 && (
+                            <TouchableOpacity
+                                onPress={() => triggerEdit(transactions.find(t => t._id === selectedIds[0]))}
+                                style={styles.iconBtn}
+                            >
+                                <Ionicons name="pencil-outline" size={scale(20)} color="#0e0057" />
+                            </TouchableOpacity>
+                        )}
                         <TouchableOpacity onPress={handleBatchDelete} style={styles.iconBtn}>
                             <Ionicons name="trash-outline" size={scale(20)} color="#c62828" />
                         </TouchableOpacity>
@@ -96,7 +110,6 @@ const Transaction = () => {
                 </View>
             )}
 
-            {/* 🔹 Using map instead of FlatList for better performance inside a Parent ScrollView */}
             <View style={styles.listContainer}>
                 {recentTransactions.map((item) => (
                     <TransactionCard
@@ -109,6 +122,17 @@ const Transaction = () => {
                     />
                 ))}
             </View>
+
+            <AddTransactionPopup
+                visible={editModalVisible}
+                onClose={() => {
+                    setEditModalVisible(false);
+                    setItemToEdit(null);
+                    setSelectedIds([]); 
+                }}
+                initialData={itemToEdit}
+                isEditing={true}
+            />
         </View>
     );
 };
@@ -117,7 +141,6 @@ export default Transaction;
 
 const styles = StyleSheet.create({
     container: {
-        // 🔹 Percentage-based padding for responsiveness
         paddingHorizontal: width * 0.04,
     },
     headerRow: {
@@ -133,7 +156,6 @@ const styles = StyleSheet.create({
         alignItems: 'center',
     },
     headerTitle: {
-        // 🔹 Scaled font size
         fontSize: scale(18),
         fontWeight: "800",
         color: "#0e0057",
