@@ -1,4 +1,3 @@
-// src/index.ts
 const express = require("express");
 const mongoose = require("mongoose");
 const userRoutes = require("./routes/userRoutes");
@@ -18,6 +17,12 @@ app.use(express.json());
 app.use(cors({ origin: "*" }));
 
 const MONGO_URI = process.env.MONGO_URI;
+
+// 🔹 Added Health Check Route for Render/Cron-job
+app.get("/health", (req: any, res: any) => {
+    res.status(200).send("Server is alive and healthy");
+});
+
 // Routes
 app.use("/api/users", userRoutes);
 app.use("/api/transaction", transactionRoutes);
@@ -28,10 +33,9 @@ app.use("/api/userSettings", userSettingsRoutes);
 app.use('/api/habit', habitRoutes);
 app.use('/api/habitLogs', habitLogRoutes);
 
-
-
 const PORT = process.env.PORT || 5000;
-app.use((req:any, res:any, next:any) => {
+
+app.use((req: any, res: any, next: any) => {
     console.log("Incoming request:", req.method, req.url);
     next();
 });
@@ -41,6 +45,7 @@ mongoose
     .connect(MONGO_URI)
     .then(() => {
         console.log("MongoDB connected");
-        app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+        // 🔹 Render specifically needs the server to listen on 0.0.0.0
+        app.listen(PORT, "0.0.0.0", () => console.log(`Server running on port ${PORT}`));
     })
-    .catch((err:any) => console.error(err));
+    .catch((err: any) => console.error("MongoDB Connection Error:", err));
