@@ -4,10 +4,7 @@ const HabitLog = require('../models/HabitLog');
 // @desc    Create a new habit
 const createHabit = async (req: any, res: any) => {
     try {
-        const userId = req.user?.uid;
-
-        const habit = await Habit.create({ ...req.body, user: req.user.id });
-        console.log('habit created =', habit)
+        const habit = await Habit.create({ ...req.body, user: req.user.uid });
         res.status(201).json(habit);
     } catch (error: any) {
         console.log('create habit error=',error)
@@ -18,11 +15,9 @@ const createHabit = async (req: any, res: any) => {
 // @desc    Get all active habits for user
 const getHabits = async (req: any, res: any) => {
     try {
-        const habits = await Habit.find({ user: req.user.id, isActive: true });
-        console.log('habit fetch=', habits)
+        const habits = await Habit.find({ userId: req.user.uid, isActive: true });
         res.json(habits);
     } catch (error: any) {
-        console.log('fetch habits error=', error)
         res.status(500).json({ message: error.message });
     }
 };
@@ -31,7 +26,7 @@ const getHabits = async (req: any, res: any) => {
 const updateHabit = async (req: any, res: any) => {
     try {
         const habit = await Habit.findOneAndUpdate(
-            { _id: req.params.id, user: req.user.id },
+            { _id: req.params.id, userId: req.user.uid },
             req.body,
             { new: true, runValidators: true }
         );
@@ -45,7 +40,7 @@ const updateHabit = async (req: any, res: any) => {
 // @desc    Delete habit and all its logs
 const deleteHabit = async (req: any, res: any) => {
     try {
-        const habit = await Habit.findOne({ _id: req.params.id, user: req.user.id });
+        const habit = await Habit.findOne({ _id: req.params.id, userId: req.user.uid });
         if (!habit) return res.status(404).json({ message: "Habit not found" });
 
         await HabitLog.deleteMany({ habit: req.params.id });
@@ -62,7 +57,7 @@ const logProgress = async (req: any, res: any) => {
     const { habitId, date, status, comment } = req.body;
     try {
         const log = await HabitLog.findOneAndUpdate(
-            { habit: habitId, date, user: req.user.id },
+            { habit: habitId, date, userId: req.user.uid },
             { status, comment },
             { upsert: true, new: true }
         );
@@ -75,7 +70,7 @@ const logProgress = async (req: any, res: any) => {
 // @desc    Get habit details with logs and stats
 const getHabitDetails = async (req: any, res: any) => {
     try {
-        const habit = await Habit.findOne({ _id: req.params.id, user: req.user.id });
+        const habit = await Habit.findOne({ _id: req.params.id, userId: req.user.uid });
         if (!habit) return res.status(404).json({ message: "Habit not found" });
 
         const logs = await HabitLog.find({ habit: req.params.id }).sort({ date: -1 });

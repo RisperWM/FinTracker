@@ -80,7 +80,7 @@ export const useHabitStore = create<HabitState>((set, get) => ({
             const config = await getAuthHeaders();
             const userId = auth.currentUser?.uid;
             const payload = { ...habitData, userId };
-            const res = await axios.post(`${API_URL}/api/habit`, payload, config);
+            const res = await axios.post(`${API_URL}/api/habit`,payload, config);
             set((state) => ({
                 habits: [res.data, ...state.habits],
                 loading: false
@@ -121,7 +121,6 @@ export const useHabitStore = create<HabitState>((set, get) => ({
             const config = await getAuthHeaders();
             const res = await axios.get(`${API_URL}/api/habitLogs/habit/${habitId}`, config);
 
-            // 🔹 Guard: Ensure res.data is actually an array
             const logData = Array.isArray(res.data) ? res.data : (res.data.data || []);
 
             set((state) => ({
@@ -142,13 +141,11 @@ export const useHabitStore = create<HabitState>((set, get) => ({
             const payload = { ...logData, userId };
             const res = await axios.post(`${API_URL}/api/habitLogs`, payload, config);
 
-            // 🔹 Important: Accessing the correct data path
             const savedLog = res.data.data || res.data;
 
             set((state) => {
                 const habitId = logData.habitId;
 
-                // 🔹 Strict Check: Ensure existingLogs is always an array
                 const currentEntry = state.logs[habitId];
                 const existingLogs = Array.isArray(currentEntry) ? currentEntry : [];
 
