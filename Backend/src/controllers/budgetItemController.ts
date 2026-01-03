@@ -79,14 +79,14 @@ const updateBudgetItem = async (req:any, res:any) => {
                 // If difference is negative: user corrected a mistake (Income/Adjustment)
                 await Transaction.create({
                     userId,
-                    title: `Adjustment: ${updatedItem.title}`,
+                    title: `Budget: ${updatedItem.title}`,
                     amount: Math.abs(difference),
                     type: difference > 0 ? "expense" : "income",
-                    category: "Budget",
+                    category: `${updatedItem.title}`,
                     date: new Date(),
                     description: difference > 0
-                        ? `Increased spend on ${updatedItem.title}`
-                        : `Reduced spend correction for ${updatedItem.title}`,
+                        ? `Budget: Spent on ${updatedItem.title}`
+                        : `Budget (reversing): ${updatedItem.title}`,
                     referenceId: updatedItem._id,
                 });
             }
@@ -116,7 +116,7 @@ const deleteBudgetItem = async (req:any, res:any) => {
                 userId,
                 title: `Deleted Item Refund: ${itemToDelete.title}`,
                 amount: itemToDelete.spentAmount,
-                type: "income", // Return money to balance
+                type: "income",
                 category: "Budget",
                 date: new Date(),
                 description: `Balance restored from deleted budget item: ${itemToDelete.title}`,
