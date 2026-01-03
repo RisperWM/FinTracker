@@ -14,6 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useBudgetStore } from "../store/budgetStore";
+import { useTransactionStore } from "../store/transactionStore"; // 🔹 Added
 import { useRouter } from "expo-router";
 import BudgetItemCard from "./BudgetItemCard";
 import BudgetItemFormModal from "./BudgetItemFormModal";
@@ -28,6 +29,9 @@ interface Props {
 export const BudgetItemList: React.FC<Props> = ({ budgetId }) => {
     const router = useRouter();
     const { budgets, fetchBudgetItems, deleteBudgetItem, updateBudgetItem, loading } = useBudgetStore();
+
+    // 🔹 Transaction Refreshers
+    const { getTransactions, getDashboard } = useTransactionStore();
 
     // UI & Modal States
     const [showFormModal, setShowFormModal] = useState(false);
@@ -69,6 +73,34 @@ export const BudgetItemList: React.FC<Props> = ({ budgetId }) => {
         if (isSearching) setSearchQuery("");
     };
 
+    // 🔹 Enhanced Log Spent Handler
+    const handleLogSpent = async (val: number) => {
+        if (!selectedItem) return;
+
+        setIsProcessing(true);
+        try {
+            // 1. Update the budget item (Triggers auto-deduct on backend)
+            await updateBudgetItem(budgetId, selectedItem._id, {
+                spentAmount: (selectedItem.spentAmount || 0) + val
+            });
+
+            // 2. Refresh Transaction Context (Balance & Recent History)
+            const now = new Date();
+            await Promise.all([
+                getTransactions(),
+                getDashboard(now.getMonth() + 1, now.getFullYear())
+            ]);
+
+            setShowLogModal(false);
+            setSelectedItem(null);
+        } catch (err: any) {
+            console.error("QuickLog Error:", err);
+            Alert.alert("Sync Failed", "Budget updated, but wallet balance refresh failed.");
+        } finally {
+            setIsProcessing(false);
+        }
+    };
+
     const handleBatchDelete = () => {
         Alert.alert(
             "Confirm Delete",
@@ -103,12 +135,12 @@ export const BudgetItemList: React.FC<Props> = ({ budgetId }) => {
                 <View style={styles.overlay}>
                     <View style={styles.loadingBox}>
                         <ActivityIndicator size="large" color="#0e0057" />
-                        <Text style={styles.loadingText}>Updating Database...</Text>
+                        <Text style={styles.loadingText}>Updating Financial Data...</Text>
                     </View>
                 </View>
             </Modal>
 
-            {/* 🔹 Enhanced Header Section */}
+            {/* Header Section */}
             <View style={styles.header}>
                 {selectionMode ? (
                     <View style={styles.selectionHeader}>
@@ -123,7 +155,6 @@ export const BudgetItemList: React.FC<Props> = ({ budgetId }) => {
                         </TouchableOpacity>
                     </View>
                 ) : isSearching ? (
-                    /* 🔹 Search Bar UI */
                     <View style={styles.searchBarContainer}>
                         <Ionicons name="search" size={20} color="#94a3b8" style={styles.searchIcon} />
                         <TextInput
@@ -138,7 +169,6 @@ export const BudgetItemList: React.FC<Props> = ({ budgetId }) => {
                         </TouchableOpacity>
                     </View>
                 ) : (
-                    /* 🔹 Standard Header */
                     <>
                         <TouchableOpacity onPress={() => router.back()} style={styles.iconBtn}>
                             <Ionicons name="arrow-back" size={24} color="#0e0057" />
@@ -164,7 +194,6 @@ export const BudgetItemList: React.FC<Props> = ({ budgetId }) => {
                 )}
             </View>
 
-            {/* 🔹 Main List with Filtering */}
             {loading && items.length === 0 ? (
                 <View style={styles.center}>
                     <ActivityIndicator size="large" color="#0e0057" />
@@ -197,8 +226,19 @@ export const BudgetItemList: React.FC<Props> = ({ budgetId }) => {
                 />
             )}
 
-            <BudgetItemFormModal visible={showFormModal} onClose={() => setShowFormModal(false)} budgetId={budgetId} editItem={selectedItem} />
-            <QuickLogModal visible={showLogModal} onClose={() => setShowLogModal(false)} onSave={async (val) => await updateBudgetItem(budgetId, selectedItem._id, { spentAmount: (selectedItem.spentAmount || 0) + val })} itemTitle={selectedItem?.title || ""} />
+            <BudgetItemFormModal
+                visible={showFormModal}
+                onClose={() => setShowFormModal(false)}
+                budgetId={budgetId}
+                editItem={selectedItem}
+            />
+
+            <QuickLogModal
+                visible={showLogModal}
+                onClose={() => setShowLogModal(false)}
+                onSave={handleLogSpent}
+                itemTitle={selectedItem?.title || ""}
+            />
         </SafeAreaView>
     );
 };
@@ -223,12 +263,10 @@ const styles = StyleSheet.create({
     searchIcon: { marginRight: 8 },
     searchInput: { flex: 1, fontSize: 15, color: '#1e293b' },
     cancelSearch: { marginLeft: 12, color: '#ef4444', fontWeight: '600' },
-    closeBtn:{},
+    closeBtn: {},
     listContent: { paddingHorizontal: 16, paddingTop: 10, paddingBottom: 120 },
     emptyContainer: { alignItems: "center", marginTop: 100 },
     emptyText: { color: "#94a3b8", marginTop: 12, fontSize: 16, fontWeight: '500' },
-    emptyAddBtn: { marginTop: 15, paddingHorizontal: 25, paddingVertical: 10, borderRadius: 10, backgroundColor: "#0e0057" },
-    emptyAddText: { color: "#FFF", fontWeight: "700" },
     overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'center', alignItems: 'center' },
     loadingBox: { backgroundColor: '#FFF', padding: 25, borderRadius: 20, alignItems: 'center', width: width * 0.7 },
     loadingText: { marginTop: 15, fontSize: 15, fontWeight: '700', color: '#0e0057' }

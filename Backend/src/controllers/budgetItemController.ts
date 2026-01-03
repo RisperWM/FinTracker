@@ -52,20 +52,17 @@ const createBudgetItem = async (req:any, res:any) => {
 };
 
 // PUT /api/budget-items/:id
-const updateBudgetItem = async (req:any, res:any) => {
+const updateBudgetItem = async (req: any, res: any) => {
     try {
         const userId = req.user?.uid;
         const { id } = req.params;
         const updates = req.body;
 
-        // 1. Find the item before updating to see the previous spentAmount
         const oldItem = await BudgetItem.findById(id);
         if (!oldItem) return res.status(404).json({ success: false, message: "Item not found" });
 
-        // 2. Perform the update
         const updatedItem = await BudgetItem.findByIdAndUpdate(id, updates, { new: true });
 
-        // 3. Handle Transaction Offset Logic
         const userSettings = await UserSettings.findOne({ userId });
         const shouldAutoDeduct = userSettings?.autoDeductBudgetExpenses ?? true;
 
@@ -75,25 +72,26 @@ const updateBudgetItem = async (req:any, res:any) => {
             const difference = newSpent - oldSpent;
 
             if (difference !== 0) {
-                // If difference is positive: user spent more (Expense)
-                // If difference is negative: user corrected a mistake (Income/Adjustment)
                 await Transaction.create({
                     userId,
-                    title: `Budget: ${updatedItem.title}`,
+                    title: `Budget Adjustment: ${updatedItem.title}`,
                     amount: Math.abs(difference),
-                    type: difference > 0 ? "expense" : "income",
-                    category: `${updatedItem.title}`,
+                    // 🔹 CHANGE: Use "expense" for more spending, but "transfer" for reductions
+                    type: difference > 0 ? "expense" : "transfer",
+                    category: "Budget Transaction",
                     date: new Date(),
                     description: difference > 0
-                        ? `Budget: Spent on ${updatedItem.title}`
-                        : `Budget (reversing): ${updatedItem.title}`,
+                        ? `Budget: Additional spend on ${updatedItem.title}`
+                        : `Budget: Moving ${Math.abs(difference)} back to balance from ${updatedItem.title}`,
                     referenceId: updatedItem._id,
+                    // If your Transaction model supports from/to, you can specify:
+                    // fromAccount: difference < 0 ? "Budget" : "Wallet"
                 });
             }
         }
 
         res.json({ success: true, data: updatedItem });
-    } catch (error:any) {
+    } catch (error: any) {
         res.status(500).json({ success: false, message: error.message });
     }
 };

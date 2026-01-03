@@ -6,6 +6,7 @@ export interface ITransaction extends Document {
     // accountId: string;
     type: "income" | "expense" | "transfer";
     category: string;
+    currentBalance?: number;
     amount: number;
     description?: string;
     date: Date;
@@ -19,6 +20,7 @@ const transactionSchema = new mongoose.Schema({
     type: { type: String, enum: ["income", "expense", "transfer"], required: true },
     category: { type: String, required: true },
     amount: { type: Number, required: true },
+    currentBalance: { type: Number },
     description: { type: String },
     date: { type: Date, default: Date.now },
     goalId: { type: String },

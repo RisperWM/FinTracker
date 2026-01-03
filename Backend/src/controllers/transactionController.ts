@@ -1,56 +1,105 @@
 const Transaction = require("../models/Transaction");
+const mongoose = require("mongoose");
 
-// Add new transaction
+/**
+ * Helper: Calculates the balance for a user up to a specific date.
+ * This ensures that if you backdate a transaction, the "currentBalance" 
+ * snapshot remains logically consistent for that date.
+ */
+const calculateBalanceAtPoint = async (userId: string, date: Date) => {
+    const stats = await Transaction.aggregate([
+        {
+            $match: {
+                userId: userId,
+                date: { $lte: date } // Only sum transactions up to this point
+            }
+        },
+        {
+            $group: {
+                _id: null,
+                income: { $sum: { $cond: [{ $eq: ["$type", "income"] }, "$amount", 0] } },
+                expense: { $sum: { $cond: [{ $eq: ["$type", "expense"] }, "$amount", 0] } },
+                transfer: { $sum: { $cond: [{ $eq: ["$type", "transfer"] }, "$amount", 0] } }
+            }
+        }
+    ]);
+
+    if (stats.length === 0) return 0;
+    return (stats[0].income + stats[0].transfer) - stats[0].expense;
+};
+
+// --- ADD TRANSACTION ---
 const addTransaction = async (req: any, res: any) => {
     try {
-        const { userId, type, category, amount, description, date, goalId } = req.body;
+        const { userId, type, category, amount, description, date, goalId, referenceId } = req.body;
+        const transactionDate = date ? new Date(date) : new Date();
 
-        const transaction = await Transaction.create({
+        // 1. Create and Save the transaction
+        const transaction = new Transaction({
             userId,
             type,
             category,
-            amount,
+            amount: Number(amount),
             description,
-            date: date ? new Date(date) : new Date(),
+            date: transactionDate,
             goalId,
+            referenceId
         });
 
-        res.status(201).json({ success: true, transaction });
+        await transaction.save();
+
+        // 2. Calculate what the balance became AFTER this specific entry
+        const balanceSnapshot = await calculateBalanceAtPoint(userId, transactionDate);
+
+        // 3. Update the document with its snapshot
+        transaction.currentBalance = balanceSnapshot;
+        await transaction.save();
+
+        res.status(201).json({
+            success: true,
+            transaction,
+            currentBalance: balanceSnapshot
+        });
     } catch (err: any) {
         res.status(500).json({ success: false, message: err.message });
     }
 };
 
-// Get all transactions for a user (optionally filtered by month)
+// --- GET TRANSACTIONS ---
 const getTransactions = async (req: any, res: any) => {
     try {
         const { userId, month, year } = req.query;
-
-        let filter: any = { userId };
+        let filter: Record<string, any> = { userId };
 
         if (month && year) {
-            const start = new Date(parseInt(year), parseInt(month) - 1, 1);
-            const end = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59);
+            const start = new Date(parseInt(year as string), parseInt(month as string) - 1, 1);
+            const end = new Date(parseInt(year as string), parseInt(month as string), 0, 23, 59, 59);
             filter.date = { $gte: start, $lte: end };
         }
 
         const transactions = await Transaction.find(filter).sort({ date: -1 });
 
-        res.status(200).json({ success: true, transactions });
+        // Return the absolute latest balance as well
+        const globalBalance = await calculateBalanceAtPoint(userId as string, new Date());
+
+        res.status(200).json({
+            success: true,
+            transactions,
+            globalBalance
+        });
     } catch (err: any) {
         res.status(500).json({ success: false, message: err.message });
     }
 };
 
-// Dashboard summary
+// --- GET DASHBOARD ---
 const getDashboard = async (req: any, res: any) => {
     try {
         const { userId, month, year } = req.query;
+        if (!month || !year) return res.status(400).json({ success: false, message: "Month/Year required" });
 
-        if (!month || !year) return res.status(400).json({ success: false, message: "Month and year required" });
-
-        const start = new Date(parseInt(year), parseInt(month) - 1, 1);
-        const end = new Date(parseInt(year), parseInt(month), 0, 23, 59, 59);
+        const start = new Date(parseInt(year as string), parseInt(month as string) - 1, 1);
+        const end = new Date(parseInt(year as string), parseInt(month as string), 0, 23, 59, 59);
 
         const transactions = await Transaction.find({
             userId,
@@ -65,13 +114,16 @@ const getDashboard = async (req: any, res: any) => {
             .filter((t: any) => t.type === "expense")
             .reduce((sum: number, t: any) => sum + t.amount, 0);
 
-        const balance = totalIncome - totalExpense;
+        const totalTransfer = transactions
+            .filter((t: any) => t.type === "transfer")
+            .reduce((sum: number, t: any) => sum + t.amount, 0);
 
         res.status(200).json({
             success: true,
             totalIncome,
             totalExpense,
-            balance,
+            totalTransfer,
+            balance: (totalIncome + totalTransfer) - totalExpense,
             transactions,
         });
     } catch (err: any) {
@@ -79,32 +131,14 @@ const getDashboard = async (req: any, res: any) => {
     }
 };
 
-// getting total balance 
+// --- GET TOTAL BALANCE ---
 const getTotalBalance = async (req: any, res: any) => {
     try {
         const { userId } = req.query;
-        const stats = await Transaction.aggregate([
-            { $match: { userId: userId } },
-            {
-                $group: {
-                    _id: null,
-                    totalIncome: {
-                        $sum: { $cond: [{ $eq: ["$type", "income"] }, "$amount", 0] }
-                    },
-                    totalExpense: {
-                        $sum: { $cond: [{ $eq: ["$type", "expense"] }, "$amount", 0] }
-                    }
-                }
-            }
-        ]);
-
-        const result = stats.length > 0 ? stats[0] : { totalIncome: 0, totalExpense: 0 };
-        const balance = result.totalIncome - result.totalExpense;
+        const balance = await calculateBalanceAtPoint(userId as string, new Date());
 
         res.status(200).json({
             success: true,
-            totalIncome: result.totalIncome,
-            totalExpense: result.totalExpense,
             balance: balance
         });
     } catch (err: any) {
@@ -112,58 +146,39 @@ const getTotalBalance = async (req: any, res: any) => {
     }
 };
 
-// Update an existing transaction
-const updateTransaction = async (req:any, res:any) => {
-    try {
-        const { id } = req.params; // Get ID from URL
-        const { type, category, amount, description, date, goalId } = req.body;
-
-        // Find the transaction first
-        let transaction = await Transaction.findById(id);
-
-        if (!transaction) {
-            return res.status(404).json({ success: false, message: "Transaction not found" });
-        }
-
-        // Optional: Check if the transaction belongs to the requesting user
-        if (transaction.userId.toString() !== req.body.userId) {
-            return res.status(403).json({ success: false, message: "Unauthorized" });
-        }
-
-        // Update fields
-        transaction.type = type || transaction.type;
-        transaction.category = category || transaction.category;
-        transaction.amount = amount || transaction.amount;
-        transaction.description = description || transaction.description;
-        transaction.goalId = goalId || transaction.goalId;
-        if (date) transaction.date = new Date(date);
-
-        const updatedTransaction = await transaction.save();
-
-        res.status(200).json({ success: true, transaction: updatedTransaction });
-    } catch (err:any) {
-        res.status(500).json({ success: false, message: err.message });
-    }
-};
-
-// Delete a transaction
-const deleteTransaction = async (req:any, res:any) => {
+// --- UPDATE TRANSACTION ---
+const updateTransaction = async (req: any, res: any) => {
     try {
         const { id } = req.params;
+        const updates = req.body;
 
-        const transaction = await Transaction.findByIdAndDelete(id);
+        const transaction = await Transaction.findByIdAndUpdate(id, updates, { new: true });
+        if (!transaction) return res.status(404).json({ success: false, message: "Not found" });
 
-        if (!transaction) {
-            return res.status(404).json({ success: false, message: "Transaction not found" });
-        }
+        // Refresh the snapshot for this transaction
+        const newSnapshot = await calculateBalanceAtPoint(transaction.userId, transaction.date);
+        transaction.currentBalance = newSnapshot;
+        await transaction.save();
 
-        res.status(200).json({ success: true, message: "Transaction deleted successfully" });
-    } catch (err:any) {
+        res.status(200).json({ success: true, transaction });
+    } catch (err: any) {
         res.status(500).json({ success: false, message: err.message });
     }
 };
 
-// Update Export using CommonJS
+// --- DELETE TRANSACTION ---
+const deleteTransaction = async (req: any, res: any) => {
+    try {
+        const { id } = req.params;
+        const transaction = await Transaction.findByIdAndDelete(id);
+        if (!transaction) return res.status(404).json({ success: false, message: "Not found" });
+
+        res.status(200).json({ success: true, message: "Deleted successfully" });
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
 module.exports = {
     addTransaction,
     getTransactions,

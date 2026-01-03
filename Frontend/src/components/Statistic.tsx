@@ -27,7 +27,7 @@ const Statistic = () => {
         .filter((t: any) => t.type === "expense")
         .reduce((sum: number, t: any) => sum + t.amount, 0);
 
-    const formatNumber = (num: number) =>
+    const formatNumber = (num: number) => 
         num.toString().replace(/\B(?=(\d{3})+(?!\d))/g, ",");
 
     return (

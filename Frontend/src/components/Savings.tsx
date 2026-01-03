@@ -6,9 +6,8 @@ import {
     TouchableOpacity,
     FlatList,
     ActivityIndicator,
-    RefreshControl,
 } from "react-native";
-import { useRouter } from "expo-router"; // Assuming you use expo-router
+import { useRouter } from "expo-router";
 import { useSavingsStore } from "@/store/savingsStore";
 import { useTransactionStore } from "@/store/transactionStore";
 import { useAuthStore } from "@/store/authStore";
@@ -30,12 +29,11 @@ const Savings = () => {
     const router = useRouter();
     const {
         savings,
-        fetchSavings,
+        fetchAllGoals, // 🔹 Fetches everything (Saving, Loan, Debt)
         createSaving,
         depositToSaving,
         withdrawFromSaving,
         loading,
-        error,
     } = useSavingsStore();
 
     const { user } = useAuthStore();
@@ -43,54 +41,61 @@ const Savings = () => {
 
     const [modalVisible, setModalVisible] = useState(false);
     const [depositModalVisible, setDepositModalVisible] = useState(false);
-    const [selectedSavingId, setSelectedSavingId] = useState<string | null>(null);
+    const [selectedItem, setSelectedItem] = useState<any>(null);
     const [depositType, setDepositType] = useState<"deposit" | "withdraw">("deposit");
     const [depositAmount, setDepositAmount] = useState<string>("");
 
+    // 🔹 Initial load: Fetch everything unless a filter is applied elsewhere
     useEffect(() => {
-        fetchSavings();
+        fetchAllGoals();
         getDashboard(new Date().getMonth() + 1, new Date().getFullYear());
         getTransactions();
     }, []);
 
     const handleCreateSaving = useCallback(
-        async (newSaving: any) => {
+        async (newGoal: any) => {
             try {
-                await createSaving(newSaving);
-                fetchSavings();
+                await createSaving(newGoal);
+                // Refresh list to include the new item immediately
+                fetchAllGoals();
             } catch (err: any) {
-                console.error("Savings Error", err.message);
+                console.error("Creation Error", err.message);
             }
         },
-        [createSaving, fetchSavings]
+        [createSaving, fetchAllGoals]
     );
 
     const handleDepositWithdraw = useCallback(async () => {
-        if (!selectedSavingId || !user) return;
+        if (!selectedItem || !user) return;
         const amount = parseFloat(depositAmount);
         if (isNaN(amount) || amount <= 0) return;
 
         try {
             if (depositType === "deposit") {
-                await depositToSaving(selectedSavingId, { userId: user._id, amount });
+                // Backend handles specific logic for Savings vs Loans
+                await depositToSaving(selectedItem._id, amount);
             } else {
-                await withdrawFromSaving(selectedSavingId, { userId: user._id, amount });
+                await withdrawFromSaving(selectedItem._id, amount);
             }
             setDepositModalVisible(false);
             setDepositAmount("");
-            fetchSavings();
-        } catch (err: any) {
-            console.error("Error", err.message);
-        }
-    }, [selectedSavingId, depositAmount, depositType, user, depositToSaving, withdrawFromSaving, fetchSavings]);
 
-    const openDepositModal = (id: string, type: "deposit" | "withdraw") => {
-        setSelectedSavingId(id);
+            // Refresh local data to show updated progress and transactions
+            fetchAllGoals();
+            getDashboard(new Date().getMonth() + 1, new Date().getFullYear());
+            getTransactions();
+        } catch (err: any) {
+            console.error("Transaction Error", err.message);
+        }
+    }, [selectedItem, depositAmount, depositType, user, depositToSaving, withdrawFromSaving, fetchAllGoals, getTransactions, getDashboard]);
+
+    const openDepositModal = (item: any, type: "deposit" | "withdraw") => {
+        setSelectedItem(item);
         setDepositType(type);
         setDepositModalVisible(true);
     };
 
-    // Logic: show 3 items, then append a dummy item for the "View All" card if needed
+    // Logic: show 3 items, then append the "View All" trigger card
     const dataForList = savings.length > 3
         ? [...savings.slice(0, 3), { _id: 'view_all_trigger' }]
         : savings;
@@ -98,11 +103,11 @@ const Savings = () => {
     return (
         <View style={styles.container}>
             <SectionHeader
-                title="My Savings Plans"
-                actionLabel={savings.length === 0 ? "Create Plan" : "View All"}
+                title="Financial Goals & Debts"
+                actionLabel={savings.length === 0 ? "Add New" : "View All"}
                 onAction={() => {
                     if (savings.length === 0) setModalVisible(true);
-                    else router.push("/savings"); // Navigate to main savings page
+                    else router.push("/savings"); // Navigate to full management page
                 }}
             />
 
@@ -112,7 +117,7 @@ const Savings = () => {
 
             <FlatList
                 data={dataForList}
-                keyExtractor={(item) => item._id}
+                keyExtractor={(item: any) => item._id}
                 horizontal
                 showsHorizontalScrollIndicator={false}
                 contentContainerStyle={styles.horizontalList}
@@ -128,10 +133,11 @@ const Savings = () => {
                             </TouchableOpacity>
                         );
                     }
-                    return <SavingCard item={item} onAction={openDepositModal} />;
+                    // Pass the whole item so we can access item.type in the card
+                    return <SavingCard item={item} onAction={(id: string, type: any) => openDepositModal(item, type)} />;
                 }}
                 ListEmptyComponent={() =>
-                    !loading ? <Text style={styles.empty}>Start saving for your goals today!</Text> : null
+                    !loading ? <Text style={styles.empty}>Start tracking your savings and debts today!</Text> : null
                 }
             />
 
@@ -148,6 +154,7 @@ const Savings = () => {
                 onClose={() => setDepositModalVisible(false)}
                 onDeposit={handleDepositWithdraw}
                 type={depositType}
+                goalType={selectedItem?.type} // "saving", "loan", or "debt"
             />
         </View>
     );
@@ -177,7 +184,7 @@ const styles = StyleSheet.create({
         fontWeight: "700",
         color: "#0e0057"
     },
-    empty: { textAlign: "center", color: "#94a3b8", fontSize: 13, marginTop: 10 },
+    empty: { textAlign: "center", color: "#94a3b8", fontSize: 13, marginTop: 10, width: 300 },
 });
 
 export default Savings;

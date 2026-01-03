@@ -4,20 +4,22 @@ import { getIdToken } from "firebase/auth";
 
 const API_URL = "http://192.168.0.24:5000";
 
-type Transaction = {
+export type Transaction = {
     _id: string;
     userId: string;
-    type: "income" | "expense";
+    type: "income" | "expense" | "transfer"; // 🔹 Added transfer
     category: string;
     amount: number;
     description?: string;
     date: string;
     goalId?: string;
+    currentBalance?: number; // 🔹 Added currentBalance snapshot from backend
 };
 
 type Dashboard = {
     totalIncome: number;
     totalExpense: number;
+    totalTransfer: number; // 🔹 Added
     balance: number;
     transactions: Transaction[];
 };
@@ -25,7 +27,7 @@ type Dashboard = {
 type TransactionState = {
     transactions: Transaction[];
     dashboard: Dashboard | null;
-    totalBalance: number; // 🔹 Added for lifetime balance
+    totalBalance: number;
     loading: boolean;
     error: string | null;
     addTransaction: (data: Omit<Transaction, "_id" | "userId">) => Promise<boolean>;
@@ -33,13 +35,13 @@ type TransactionState = {
     deleteTransaction: (id: string) => Promise<boolean>;
     getTransactions: (month?: number, year?: number) => Promise<void>;
     getDashboard: (month: number, year: number) => Promise<void>;
-    getTotalBalance: () => Promise<void>; // 🔹 New function
+    getTotalBalance: () => Promise<void>;
 };
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({
     transactions: [],
     dashboard: null,
-    totalBalance: 0, // 🔹 Initialized
+    totalBalance: 0,
     loading: false,
     error: null,
 
@@ -84,13 +86,13 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             const json = await res.json();
             if (!res.ok) throw new Error(json.message || "Failed to add");
 
+            // 🔹 Update state with new transaction and the new balance returned by backend
             set((state) => ({
                 transactions: [json.transaction, ...state.transactions],
+                totalBalance: json.currentBalance, // 🔹 Immediate update from creation response
                 loading: false,
             }));
 
-            // 🔹 Refresh total balance after adding
-            get().getTotalBalance();
             return true;
         } catch (err: any) {
             set({ error: err.message, loading: false });
@@ -112,7 +114,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
                     "Content-Type": "application/json",
                     Authorization: `Bearer ${token}`,
                 },
-                body: JSON.stringify(data),
+                body: JSON.stringify({ ...data, userId: currentUser.uid }),
             });
 
             const json = await res.json();
@@ -145,8 +147,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
                 headers: { Authorization: `Bearer ${token}` },
             });
 
-            const json = await res.json();
-            if (!res.ok) throw new Error(json.message || "Failed to delete");
+            if (!res.ok) throw new Error("Failed to delete");
 
             set((state) => ({
                 transactions: state.transactions.filter((t) => t._id !== id),
@@ -170,18 +171,24 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             if (!currentUser) throw new Error("Not authenticated");
             const token = await getIdToken(currentUser);
 
-            const query = month && year
-                ? `?userId=${currentUser.uid}&month=${month}&year=${year}`
-                : `?userId=${currentUser.uid}`;
+            const queryParams = new URLSearchParams({
+                userId: currentUser.uid,
+                ...(month && { month: month.toString() }),
+                ...(year && { year: year.toString() }),
+            });
 
-            const res = await fetch(`${API_URL}/api/transaction/${query}`, {
+            const res = await fetch(`${API_URL}/api/transaction?${queryParams.toString()}`, {
                 method: "GET",
                 headers: { Authorization: `Bearer ${token}` },
             });
             const json = await res.json();
             if (!res.ok) throw new Error(json.message || "Failed to fetch");
 
-            set({ transactions: json.transactions, loading: false });
+            set({
+                transactions: json.transactions,
+                totalBalance: json.globalBalance, // 🔹 Store the global balance returned here
+                loading: false
+            });
         } catch (err: any) {
             set({ error: err.message, loading: false });
         }

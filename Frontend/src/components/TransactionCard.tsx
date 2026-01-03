@@ -14,8 +14,21 @@ interface TransactionCardProps {
 
 const TransactionCard = ({ item, onPress, onLongPress, isSelected, selectionMode, style }: TransactionCardProps) => {
     const isIncome = item.type === "income";
-    const statusColor = isIncome ? "#2e7d32" : "#c62828";
-    const iconBg = isIncome ? "#e8f5e9" : "#ffebee";
+    const isTransfer = item.type === "transfer";
+    const isExpense = item.type === "expense";
+
+    // 🔹 Logic: Determine if a transfer is increasing or decreasing the liquid balance
+    // In our system, "back to balance" means money is returning to the wallet (+)
+    const isPositiveTransfer = isTransfer && item.description?.toLowerCase().includes("back to");
+
+    // 🔹 Select Theme Colors & Icons
+    const getTheme = () => {
+        if (isIncome) return { color: "#2e7d32", bg: "#e8f5e9", icon: "arrow-up" };
+        if (isTransfer) return { color: "#0284c7", bg: "#e0f2fe", icon: "swap-horizontal" };
+        return { color: "#c62828", bg: "#ffebee", icon: "arrow-down" };
+    };
+
+    const theme = getTheme();
 
     return (
         <TouchableOpacity
@@ -24,7 +37,7 @@ const TransactionCard = ({ item, onPress, onLongPress, isSelected, selectionMode
             activeOpacity={0.7}
             style={[
                 styles.card,
-                { borderLeftColor: statusColor },
+                { borderLeftColor: theme.color },
                 isSelected && styles.selectedCard,
                 style
             ]}
@@ -39,8 +52,8 @@ const TransactionCard = ({ item, onPress, onLongPress, isSelected, selectionMode
                 </View>
             )}
 
-            <View style={[styles.iconContainer, { backgroundColor: iconBg }]}>
-                <Ionicons name={isIncome ? "arrow-up" : "arrow-down"} size={16} color={statusColor} />
+            <View style={[styles.iconContainer, { backgroundColor: theme.bg }]}>
+                <Ionicons name={theme.icon as any} size={16} color={theme.color} />
             </View>
 
             <View style={styles.content}>
@@ -49,10 +62,22 @@ const TransactionCard = ({ item, onPress, onLongPress, isSelected, selectionMode
             </View>
 
             <View style={styles.rightSide}>
-                <Text style={[styles.amount, { color: isIncome ? "#2e7d32" : "#1a1a1a" }]}>
-                    {isIncome ? "+" : "-"} {Number(item.amount).toLocaleString()}
+                {/* 🔹 Logic: Show + for Income OR Positive Transfers. Show - for Expenses OR Negative Transfers */}
+                <Text style={[styles.amount, { color: (isIncome || isPositiveTransfer) ? "#2e7d32" : "#c62828" }]}>
+                    {(isIncome || isPositiveTransfer) ? "+" : "-"} {Number(item.amount).toLocaleString()}
                 </Text>
-                <Text style={styles.date}>{new Date(item.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}</Text>
+
+                <View style={styles.metaRow}>
+                    <Text style={styles.date}>
+                        {new Date(item.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short" })}
+                    </Text>
+
+                    {item.currentBalance !== undefined && (
+                        <Text style={styles.runningBalance}>
+                            Bal: {Number(item.currentBalance).toLocaleString()}
+                        </Text>
+                    )}
+                </View>
             </View>
         </TouchableOpacity>
     );
@@ -84,5 +109,16 @@ const styles = StyleSheet.create({
     description: { fontSize: 12, color: "#71717a", marginTop: 2 },
     rightSide: { alignItems: "flex-end" },
     amount: { fontSize: 15, fontWeight: "700" },
-    date: { fontSize: 10, color: "#a1a1aa", marginTop: 4 },
+    metaRow: {
+        marginTop: 4,
+        flexDirection: 'column',
+        alignItems: 'flex-end'
+    },
+    date: { fontSize: 10, color: "#a1a1aa" },
+    runningBalance: {
+        fontSize: 9,
+        color: "#94a3b8",
+        fontWeight: "500",
+        marginTop: 2
+    },
 });

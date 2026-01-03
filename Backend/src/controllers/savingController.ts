@@ -1,270 +1,216 @@
 const Saving = require("../models/Savings");
 const Transaction = require("../models/Transaction");
+const mongoose = require("mongoose");
 
-// ------------------------------
-// Create a new saving plan
-// POST /api/savings
-// ------------------------------
+/**
+ * Creates a record for a Saving Goal, a Loan, or a Debt.
+ * type: "saving" | "loan" | "debt"
+ */
 const createSaving = async (req: any, res: any) => {
     try {
-        const { userId, title, description, targetAmount, startDate, endDate, currentAmount = 0, status = "active" } = req.body;
+        const userId = req.user.uid;
+        const { title, description, targetAmount, type, startDate, endDate, interestRate } = req.body;
 
-        const saving = await Saving.create({
+        const record = await Saving.create({
             userId,
             title,
             description,
+            type,
             targetAmount,
+            currentAmount: 0,
+            interestRate: interestRate || 0,
             startDate,
             endDate,
-            currentAmount,
-            status,
+            status: "active",
         });
 
-        res.status(201).json({ success: true, data: saving });
+        res.status(201).json({ success: true, data: record });
     } catch (err: any) {
         console.error("createSavingError:", err);
         res.status(500).json({ success: false, message: err.message });
     }
 };
 
-// ------------------------------
-// Deposit to a saving
-// POST /api/savings/:id/deposit
-// ------------------------------
-// const depositToSaving = async (req: any, res: any) => {
-//     try {
-//         const { userId, amount } = req.body;
-//         const saving = await Saving.findById(req.params.id);
-
-//         if (!saving) return res.status(404).json({ success: false, message: "Saving plan not found" });
-//         if (!amount || amount <= 0) return res.status(400).json({ success: false, message: "Invalid deposit amount" });
-
-//         // Increase saving amount
-//         saving.currentAmount += amount;
-
-//         // Check if goal reached
-//         if (saving.targetAmount && saving.currentAmount >= saving.targetAmount) {
-//             saving.status = "completed";
-//         }
-
-//         await saving.save();
-
-//         // Create transaction: deduct from balance
-//         await Transaction.create({
-//             userId,
-//             type: "expense",
-//             category: "Savings",
-//             amount,
-//             description: `Deposit to saving: ${saving.title}`,
-//             date: new Date(),
-//             goalId: saving._id,
-//         });
-
-//         res.json({ success: true, data: saving });
-//     } catch (err: any) {
-//         console.error("depositToSavingError:", err);
-//         res.status(500).json({ success: false, message: err.message });
-//     }
-// };
-
-// // ------------------------------
-// // Withdraw from a saving
-// // POST /api/savings/:id/withdraw
-// // ------------------------------
-// const withdrawFromSaving = async (req: any, res: any) => {
-//     try {
-//         const { userId, amount } = req.body;
-//         const saving = await Saving.findById(req.params.id);
-
-//         if (!saving) return res.status(404).json({ success: false, message: "Saving plan not found" });
-//         if (!amount || amount <= 0) return res.status(400).json({ success: false, message: "Invalid withdrawal amount" });
-//         if (amount > saving.currentAmount) return res.status(400).json({ success: false, message: "Insufficient funds in saving" });
-
-//         // Decrease saving amount
-//         saving.currentAmount -= amount;
-
-//         // Reopen completed saving if funds drop below target
-//         if (saving.targetAmount && saving.currentAmount < saving.targetAmount && saving.status === "completed") {
-//             saving.status = "active";
-//         }
-
-//         await saving.save();
-
-//         // Create transaction: add to balance
-//         await Transaction.create({
-//             userId,
-//             type: "income",
-//             category: "Savings Withdrawal",
-//             amount,
-//             description: `Withdraw from saving: ${saving.title}`,
-//             date: new Date(),
-//             goalId: saving._id,
-//         });
-
-//         res.json({ success: true, data: saving });
-//     } catch (err: any) {
-//         console.error("withdrawFromSavingError:", err);
-//         res.status(500).json({ success: false, message: err.message });
-//     }
-// };
-
+/**
+ * 🔹 UNIVERSAL DEPOSIT (Repayment / Contribution)
+ * Triggers "OUT" (Minus) on the Transaction Card
+ */
 const depositToSaving = async (req: any, res: any) => {
     try {
-
-        const {amount } = req.body;
-        const userId = req.user.uid;
-        const saving = await Saving.findById(req.params.id);
-
-        if (!saving) {
-            console.error("Saving plan not found");
-            return res.status(404).json({ success: false, message: "Saving plan not found" });
-        }
-        if (!amount || amount <= 0) {
-            console.error("Invalid deposit amount:", amount);
-            return res.status(400).json({ success: false, message: "Invalid deposit amount" });
-        }
-
-        // Increase saving amount
-        saving.currentAmount += amount;
-
-        // Check if goal reached
-        if (saving.targetAmount && saving.currentAmount >= saving.targetAmount) {
-            saving.status = "completed";
-        }
-
-        await saving.save();
-
-        // Create transaction: deduct from balance
-        const transaction = await Transaction.create({
-            userId,
-            type: "expense",
-            category: "Savings Deposit",
-            amount,
-            description: `Deposit to saving: ${saving.title}`,
-            date: new Date(),
-            goalId: saving._id,
-        });
-
-        res.json({ success: true, data: saving });
-    } catch (err: any) {
-        console.error("depositToSavingError:", err);
-        res.status(500).json({ success: false, message: err.message });
-    }
-};
-
-const withdrawFromSaving = async (req: any, res: any) => {
-    try {
-
         const { amount } = req.body;
         const userId = req.user.uid;
-        const saving = await Saving.findById(req.params.id);
+        const record = await Saving.findById(req.params.id);
 
-        if (!saving) {
-            console.error("Saving plan not found");
-            return res.status(404).json({ success: false, message: "Saving plan not found" });
-        }
-        if (!amount || amount <= 0) {
-            console.error("Invalid withdrawal amount:", amount);
-            return res.status(400).json({ success: false, message: "Invalid withdrawal amount" });
-        }
-        if (amount > saving.currentAmount) {
-            console.error("Insufficient funds. Current amount:", saving.currentAmount, "Requested:", amount);
-            return res.status(400).json({ success: false, message: "Insufficient funds in saving" });
-        }
+        if (!record) return res.status(404).json({ success: false, message: "Record not found" });
+        if (!amount || amount <= 0) return res.status(400).json({ success: false, message: "Invalid amount" });
 
-        // Decrease saving amount
-        saving.currentAmount -= amount;
+        const remainingPrincipal = record.targetAmount - record.currentAmount;
+        let transferAmount = amount;
+        let extraAmount = 0;
 
-        // Reopen completed saving if funds drop below target
-        if (saving.targetAmount && saving.currentAmount < saving.targetAmount && saving.status === "completed") {
-            saving.status = "active";
+        // If paying more than the principal owed (Interest/Profit handling)
+        if (amount > remainingPrincipal && (record.type === "loan" || record.type === "debt")) {
+            transferAmount = remainingPrincipal;
+            extraAmount = amount - remainingPrincipal;
         }
 
-        await saving.save();
+        // 1. Update the record amount
+        record.currentAmount += transferAmount;
+        await record.save();
 
-        // Create transaction: add to balance
-        const transaction = await Transaction.create({
+        // 2. Log the Principal Transfer (OUT of wallet)
+        const transferDesc = record.type === "saving"
+            ? `Deposit to savings: ${record.title}`
+            : `Repayment for ${record.title}`;
+
+        await Transaction.create({
             userId,
-            type: "income",
-            category: "Savings Withdrawal",
-            amount,
-            description: `Withdraw from saving: ${saving.title}`,
+            type: "transfer",
+            amount: transferAmount,
+            category: record.type === "saving" ? "Savings" : "Debt Repayment",
+            description: transferDesc,
+            goalId: record._id,
             date: new Date(),
-            goalId: saving._id,
         });
 
-        res.json({ success: true, data: saving });
+        // 3. Log the "Extra" if any (Interest Income or Expense)
+        if (extraAmount > 0) {
+            const extraType = record.type === "debt" ? "expense" : "income";
+            await Transaction.create({
+                userId,
+                type: extraType,
+                amount: extraAmount,
+                category: "Interest/Gift",
+                description: record.type === "debt"
+                    ? `Interest paid on ${record.title}`
+                    : `Bonus received from ${record.title}`,
+                goalId: record._id,
+                date: new Date(),
+            });
+        }
+
+        res.json({
+            success: true,
+            data: record,
+            principal: transferAmount,
+            extra: extraAmount
+        });
     } catch (err: any) {
-        console.error("withdrawFromSavingError:", err);
+        console.error("depositError:", err);
         res.status(500).json({ success: false, message: err.message });
     }
 };
 
-
-// ------------------------------
-// Delete a saving plan
-// DELETE /api/savings/:id
-// ------------------------------
-const deleteSaving = async (req: any, res: any) => {
+/**
+ * 🔹 UNIVERSAL WITHDRAW (Withdrawal / Borrowing)
+ * Triggers "IN" (Plus) on the Transaction Card via "back to balance" keyword
+ */
+const withdrawFromSaving = async (req: any, res: any) => {
     try {
-        const saving = await Saving.findById(req.params.id);
-        if (!saving) return res.status(404).json({ success: false, message: "Saving plan not found" });
+        const { amount } = req.body;
+        const userId = req.user.uid;
+        const record = await Saving.findById(req.params.id);
 
-        await saving.deleteOne();
+        if (!record) return res.status(404).json({ success: false, message: "Record not found" });
 
-        res.json({ success: true, message: "Saving plan deleted successfully" });
+        // Block over-withdrawal from Savings
+        if (record.type === "saving" && amount > record.currentAmount) {
+            return res.status(400).json({ success: false, message: "Insufficient savings" });
+        }
+
+        record.currentAmount -= amount;
+        await record.save();
+
+        // 🔹 Using "back to balance" ensures the Frontend shows a "+" (IN)
+        const withdrawDesc = record.type === "saving"
+            ? `Withdrawal from ${record.title} back to balance`
+            : `Borrowing:${record.title} back to balance`;
+
+        await Transaction.create({
+            userId,
+            type: "transfer",
+            amount,
+            category: "Goal Withdrawal",
+            description: withdrawDesc,
+            goalId: record._id,
+            date: new Date(),
+        });
+
+        res.json({ success: true, data: record });
     } catch (err: any) {
-        console.error("deleteSavingError:", err);
         res.status(500).json({ success: false, message: err.message });
     }
 };
 
-// ------------------------------
-// Update a saving plan
-// PUT /api/savings/:id
-// ------------------------------
-const updateSaving = async (req: any, res: any) => {
-    try {
-        const saving = await Saving.findByIdAndUpdate(req.params.id, { $set: req.body }, { new: true, runValidators: true });
-        if (!saving) return res.status(404).json({ success: false, message: "Saving plan not found" });
+/**
+ * 🔹 FETCHERS
+ */
 
-        res.json({ success: true, data: saving });
-    } catch (err: any) {
-        console.error("updateSavingError:", err);
-        res.status(500).json({ success: false, message: err.message });
-    }
-};
-
-// ------------------------------
-// Get all savings for a user
-// GET /api/savings
-// ------------------------------
 const getSavings = async (req: any, res: any) => {
     try {
-        const { userId } = req.query;
-        if (!userId) return res.status(401).json({ success: false, message: "Unauthorized" });
+        const userId = req.user.uid;
+        const { type } = req.query;
 
-        const savings = await Saving.find({ userId });
+        const filter: { userId: string; type?: any } = { userId };
+        if (type) filter.type = type;
 
-        res.json({ success: true, data: savings });
+        const data = await Saving.find(filter).sort({ createdAt: -1 });
+        res.json({ success: true, data });
     } catch (err: any) {
-        console.error("getSavingsError:", err);
         res.status(500).json({ success: false, message: err.message });
     }
 };
 
-// ------------------------------
-// Get a single saving by ID
-// GET /api/savings/:id
-// ------------------------------
+const getLoans = async (req: any, res: any) => {
+    try {
+        const data = await Saving.find({ userId: req.user.uid, type: "loan" }).sort({ createdAt: -1 });
+        res.json({ success: true, data });
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+const getDebts = async (req: any, res: any) => {
+    try {
+        const data = await Saving.find({ userId: req.user.uid, type: "debt" }).sort({ createdAt: -1 });
+        res.json({ success: true, data });
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
 const getSavingById = async (req: any, res: any) => {
     try {
-        const saving = await Saving.findById(req.params.id);
-        if (!saving) return res.status(404).json({ success: false, message: "Saving plan not found" });
-
-        res.json({ success: true, data: saving });
+        const record = await Saving.findById(req.params.id);
+        if (!record) return res.status(404).json({ success: false, message: "Not found" });
+        res.json({ success: true, data: record });
     } catch (err: any) {
-        console.error("getSavingByIdError:", err);
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+/**
+ * 🔹 UPDATES & DELETION
+ */
+
+const updateSaving = async (req: any, res: any) => {
+    try {
+        const record = await Saving.findByIdAndUpdate(
+            req.params.id,
+            { $set: req.body },
+            { new: true, runValidators: true }
+        );
+        res.json({ success: true, data: record });
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+const deleteSaving = async (req: any, res: any) => {
+    try {
+        await Saving.findByIdAndDelete(req.params.id);
+        res.json({ success: true, message: "Record deleted successfully" });
+    } catch (err: any) {
         res.status(500).json({ success: false, message: err.message });
     }
 };
@@ -276,5 +222,7 @@ module.exports = {
     deleteSaving,
     updateSaving,
     getSavings,
+    getLoans,
+    getDebts,
     getSavingById,
 };

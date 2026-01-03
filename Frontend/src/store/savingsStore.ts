@@ -1,13 +1,15 @@
-// src/store/savingsStore.ts
 import { create } from "zustand";
 import { auth } from "@/services/firebase";
 import { getIdToken } from "firebase/auth";
+
+export type GoalType = 'saving' | 'loan' | 'debt';
 
 export interface Saving {
     _id: string;
     userId: string;
     title: string;
     description?: string;
+    type: GoalType;
     targetAmount: number;
     currentAmount: number;
     startDate: Date;
@@ -23,22 +25,26 @@ interface SavingsState {
     loading: boolean;
     error: string | null;
 
+    // Fetchers
+    fetchAllGoals: () => Promise<void>; // 🔹 Fetch everything combined
     fetchSavings: () => Promise<void>;
+    fetchLoans: () => Promise<void>;
+    fetchDebts: () => Promise<void>;
+
     getSavingById: (id: string) => Saving | undefined;
     createSaving: (savingData: Partial<Saving>) => Promise<void>;
     updateSaving: (id: string, savingData: Partial<Saving>) => Promise<void>;
     deleteSaving: (id: string) => Promise<void>;
-    depositToSaving: (id: string, payload: { userId: string; amount: number }) => Promise<void>;
-    withdrawFromSaving: (id: string, payload: { userId: string; amount: number }) => Promise<void>;
+
+    depositToSaving: (id: string, amount: number) => Promise<void>;
+    withdrawFromSaving: (id: string, amount: number) => Promise<void>;
 }
 
 const API_URL = "http://192.168.0.24:5000/api/savings";
 
-// Helper to always get auth headers
 const getAuthHeaders = async () => {
     const currentUser = auth.currentUser;
     if (!currentUser) throw new Error("Not authenticated");
-
     const token = await getIdToken(currentUser);
     return {
         "Content-Type": "application/json",
@@ -51,25 +57,52 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
     loading: false,
     error: null,
 
+    // 🔹 1. Fetch ALL (So loans like "Dad" show up in the main list)
+    fetchAllGoals: async () => {
+        set({ loading: true, error: null });
+        try {
+            const headers = await getAuthHeaders();
+            // No type filter = backend returns all types
+            const res = await fetch(`${API_URL}`, { method: "GET", headers });
+            const json = await res.json();
+            set({ savings: json.data || [], loading: false });
+        } catch (err: any) {
+            set({ error: err.message, loading: false });
+        }
+    },
+
+    // 🔹 2. Fetch specific types (for filtered tabs)
     fetchSavings: async () => {
         set({ loading: true, error: null });
         try {
-            const currentUser = auth.currentUser;
-            if (!currentUser) throw new Error("Not authenticated");
-
-            const token = await getIdToken(currentUser);
-            const res = await fetch(`${API_URL}?userId=${currentUser.uid}`, {
-                method: "GET",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-            });
-
+            const headers = await getAuthHeaders();
+            const res = await fetch(`${API_URL}?type=saving`, { method: "GET", headers });
             const json = await res.json();
-            if (!res.ok) throw new Error(json.message || "Failed to fetch savings");
+            set({ savings: json.data || [], loading: false });
+        } catch (err: any) {
+            set({ error: err.message, loading: false });
+        }
+    },
 
-            set({ savings: json.data, loading: false });
+    fetchLoans: async () => {
+        set({ loading: true, error: null });
+        try {
+            const headers = await getAuthHeaders();
+            const res = await fetch(`${API_URL}/loans`, { method: "GET", headers });
+            const json = await res.json();
+            set({ savings: json.data || [], loading: false });
+        } catch (err: any) {
+            set({ error: err.message, loading: false });
+        }
+    },
+
+    fetchDebts: async () => {
+        set({ loading: true, error: null });
+        try {
+            const headers = await getAuthHeaders();
+            const res = await fetch(`${API_URL}/debts`, { method: "GET", headers });
+            const json = await res.json();
+            set({ savings: json.data || [], loading: false });
         } catch (err: any) {
             set({ error: err.message, loading: false });
         }
@@ -80,32 +113,26 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
     createSaving: async (savingData) => {
         try {
             set({ loading: true, error: null });
-            const currentUser = auth.currentUser;
-            if (!currentUser) throw new Error("Not authenticated");
-
-            const token = await getIdToken(currentUser);
+            const headers = await getAuthHeaders();
             const res = await fetch(`${API_URL}`, {
                 method: "POST",
-                headers: {
-                    "Content-Type": "application/json",
-                    Authorization: `Bearer ${token}`,
-                },
-                body: JSON.stringify({
-                    ...savingData,
-                    userId: currentUser.uid,
-                }),
+                headers,
+                body: JSON.stringify(savingData),
             });
 
             const data = await res.json();
-            set((state) => ({
-                savings: [...state.savings, data.data],
-                loading: false,
-            }));
+            if (data.success) {
+                set((state) => ({
+                    savings: [data.data, ...state.savings],
+                    loading: false,
+                }));
+            }
         } catch (err: any) {
             set({ error: err.message, loading: false });
         }
     },
 
+    // ... rest of the logic (update, delete, deposit, withdraw) remains the same
     updateSaving: async (id, savingData) => {
         try {
             const headers = await getAuthHeaders();
@@ -135,13 +162,13 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         }
     },
 
-    depositToSaving: async (id, payload) => {
+    depositToSaving: async (id, amount) => {
         try {
             const headers = await getAuthHeaders();
             const res = await fetch(`${API_URL}/${id}/deposit`, {
                 method: "POST",
                 headers,
-                body: JSON.stringify(payload), // payload = { userId, amount }
+                body: JSON.stringify({ amount }),
             });
             const data = await res.json();
             set((state) => ({
@@ -152,13 +179,13 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         }
     },
 
-    withdrawFromSaving: async (id, payload) => {
+    withdrawFromSaving: async (id, amount) => {
         try {
             const headers = await getAuthHeaders();
             const res = await fetch(`${API_URL}/${id}/withdraw`, {
                 method: "POST",
                 headers,
-                body: JSON.stringify(payload), // payload = { userId, amount }
+                body: JSON.stringify({ amount }),
             });
             const data = await res.json();
             set((state) => ({
