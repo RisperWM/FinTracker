@@ -40,6 +40,7 @@ type AuthState = {
     logout: () => Promise<void>;
     getUser: () => Promise<void>;
     restoreUser: () => Promise<void>;
+    clearError: () => void; // 🔹 Added clearError to the type
 };
 
 export const useAuthStore = create<AuthState>((set) => ({
@@ -47,6 +48,9 @@ export const useAuthStore = create<AuthState>((set) => ({
     loading: false,
     error: null,
     isHydrated: false,
+
+    // 🔹 Action to clear error state
+    clearError: () => set({ error: null }),
 
     // 🔄 Restore from AsyncStorage
     restoreUser: async () => {

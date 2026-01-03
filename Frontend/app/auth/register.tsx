@@ -14,18 +14,49 @@ const Register = () => {
     const [showPassword, setShowPassword] = useState(false);
     const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-    // New fields
+    // Identity fields
     const [firstname, setFirstname] = useState("");
     const [middlename, setMiddlename] = useState("");
     const [surname, setSurname] = useState("");
     const [gender, setGender] = useState<"male" | "female" | "other">("male");
+
+    // 🔹 Country Code & Phone
+    const [countryCode, setCountryCode] = useState("+254");
     const [phonenumber, setPhonenumber] = useState("");
+    const [showCountryPicker, setShowCountryPicker] = useState(false);
+
+    const countryCodes = [
+        { code: "+254", flag: "🇰🇪" },
+        { code: "+255", flag: "🇹🇿" },
+        { code: "+256", flag: "🇺🇬" },
+        { code: "+1", flag: "🇺🇸" },
+    ];
 
     const handleRegister = async () => {
+        // 🔹 Validation Logic
+        if (!email || !password || !firstname || !surname || !phonenumber) {
+            alert("Please fill in all required fields.");
+            return;
+        }
+
+        const emailRegex = /\S+@\S+\.\S+/;
+        if (!emailRegex.test(email)) {
+            alert("Please enter a valid email address.");
+            return;
+        }
+
+        if (password.length < 6) {
+            alert("Password must be at least 6 characters.");
+            return;
+        }
+
         if (password !== confirmPassword) {
             alert("Passwords do not match!");
             return;
         }
+
+        // Combine code and number
+        const fullPhone = `${countryCode}${phonenumber.replace(/^0+/, '')}`;
 
         await register({
             email,
@@ -34,7 +65,7 @@ const Register = () => {
             middlename,
             surname,
             gender,
-            phonenumber,
+            phonenumber: fullPhone,
         });
 
         if (!error) {
@@ -87,13 +118,39 @@ const Register = () => {
                 </View>
 
                 <Text style={styles.label}>Phone Number:</Text>
-                <TextInput
-                    style={styles.input}
-                    placeholder="Enter your phone number"
-                    value={phonenumber}
-                    onChangeText={setPhonenumber}
-                    keyboardType="phone-pad"
-                />
+                <View style={styles.phoneInputContainer}>
+                    <TouchableOpacity
+                        style={styles.countryPicker}
+                        onPress={() => setShowCountryPicker(!showCountryPicker)}
+                    >
+                        <Text style={styles.countryPickerText}>{countryCode}</Text>
+                        <Ionicons name="chevron-down" size={14} color="gray" />
+                    </TouchableOpacity>
+                    <TextInput
+                        style={[styles.input, { flex: 1, marginBottom: 0 }]}
+                        placeholder="712345678"
+                        value={phonenumber}
+                        onChangeText={setPhonenumber}
+                        keyboardType="phone-pad"
+                    />
+                </View>
+
+                {showCountryPicker && (
+                    <View style={styles.dropdown}>
+                        {countryCodes.map((item) => (
+                            <TouchableOpacity
+                                key={item.code}
+                                style={styles.dropdownItem}
+                                onPress={() => {
+                                    setCountryCode(item.code);
+                                    setShowCountryPicker(false);
+                                }}
+                            >
+                                <Text>{item.flag} {item.code}</Text>
+                            </TouchableOpacity>
+                        ))}
+                    </View>
+                )}
 
                 <Text style={styles.label}>Email:</Text>
                 <TextInput
@@ -158,10 +215,30 @@ export default Register;
 
 const styles = StyleSheet.create({
     logoContainer: { alignItems: "center" },
-    logo: { width:120, height: 120 },
+    logo: { width: 120, height: 120 },
     title: { fontSize: 24, fontWeight: "600", marginBottom: 20, textAlign: "center", color: "#0e0057" },
     label: { textTransform: "uppercase", color: "gray", fontWeight: "bold", marginBottom: 9 },
     input: { borderWidth: 1, borderColor: "#ccc", padding: 12, borderRadius: 5, marginBottom: 20 },
+    phoneInputContainer: { flexDirection: 'row', gap: 10, marginBottom: 20 },
+    countryPicker: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        borderWidth: 1,
+        borderColor: "#ccc",
+        paddingHorizontal: 10,
+        borderRadius: 5,
+        gap: 5
+    },
+    countryPickerText: { fontWeight: "bold", color: "#0e0057" },
+    dropdown: {
+        backgroundColor: "#fff",
+        borderWidth: 1,
+        borderColor: "#ccc",
+        borderRadius: 5,
+        marginTop: -15,
+        marginBottom: 20
+    },
+    dropdownItem: { padding: 12, borderBottomWidth: 1, borderBottomColor: "#eee" },
     passwordContainer: { flexDirection: "row", alignItems: "center", borderRadius: 5, marginBottom: 20 },
     error: { color: "red", marginBottom: 10 },
     signIn: { margin: 10, justifyContent: "center", alignItems: "center", flexDirection: "row", gap: 5, fontSize: 12 },
