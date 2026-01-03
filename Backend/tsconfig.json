@@ -5,13 +5,13 @@
     
     "moduleResolution": "node",
     "allowSyntheticDefaultImports": true,
-    "rootDir": "./src",
-    "outDir": "./dist/index.ts",
 
-    // Environment Settings
-    // See also https://aka.ms/tsconfig/module
-    "module": "commonjs",
-    "target": "esnext",
+
+    "outDir": "./dist",
+    "rootDir": "./src",
+    "module": "CommonJS",
+    "target": "ES6",
+
     // For nodejs:
     "lib": ["esnext"],
     "types": ["node"],
