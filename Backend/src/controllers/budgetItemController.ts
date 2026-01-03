@@ -76,7 +76,6 @@ const updateBudgetItem = async (req: any, res: any) => {
                     userId,
                     title: `Budget Adjustment: ${updatedItem.title}`,
                     amount: Math.abs(difference),
-                    // 🔹 CHANGE: Use "expense" for more spending, but "transfer" for reductions
                     type: difference > 0 ? "expense" : "transfer",
                     category: "Budget Transaction",
                     date: new Date(),
@@ -105,7 +104,6 @@ const deleteBudgetItem = async (req:any, res:any) => {
         const itemToDelete = await BudgetItem.findById(id);
         if (!itemToDelete) return res.status(404).json({ success: false, message: "Item not found" });
 
-        // ✅ Offset logic: If money was spent, "return" it to the balance upon deletion
         const userSettings = await UserSettings.findOne({ userId });
         const shouldAutoDeduct = userSettings?.autoDeductBudgetExpenses ?? true;
 

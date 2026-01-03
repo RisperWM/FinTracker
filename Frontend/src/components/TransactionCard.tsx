@@ -17,8 +17,6 @@ const TransactionCard = ({ item, onPress, onLongPress, isSelected, selectionMode
     const isTransfer = item.type === "transfer";
     const isExpense = item.type === "expense";
 
-    // 🔹 Logic: Determine if a transfer is increasing or decreasing the liquid balance
-    // In our system, "back to balance" means money is returning to the wallet (+)
     const isPositiveTransfer = isTransfer && item.description?.toLowerCase().includes("back to");
 
     // 🔹 Select Theme Colors & Icons
@@ -62,7 +60,6 @@ const TransactionCard = ({ item, onPress, onLongPress, isSelected, selectionMode
             </View>
 
             <View style={styles.rightSide}>
-                {/* 🔹 Logic: Show + for Income OR Positive Transfers. Show - for Expenses OR Negative Transfers */}
                 <Text style={[styles.amount, { color: (isIncome || isPositiveTransfer) ? "#2e7d32" : "#c62828" }]}>
                     {(isIncome || isPositiveTransfer) ? "+" : "-"} {Number(item.amount).toLocaleString()}
                 </Text>

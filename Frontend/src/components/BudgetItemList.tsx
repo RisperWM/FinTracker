@@ -14,7 +14,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Ionicons } from "@expo/vector-icons";
 import { useBudgetStore } from "../store/budgetStore";
-import { useTransactionStore } from "../store/transactionStore"; // 🔹 Added
+import { useTransactionStore } from "../store/transactionStore";
 import { useRouter } from "expo-router";
 import BudgetItemCard from "./BudgetItemCard";
 import BudgetItemFormModal from "./BudgetItemFormModal";
@@ -30,7 +30,6 @@ export const BudgetItemList: React.FC<Props> = ({ budgetId }) => {
     const router = useRouter();
     const { budgets, fetchBudgetItems, deleteBudgetItem, updateBudgetItem, loading } = useBudgetStore();
 
-    // 🔹 Transaction Refreshers
     const { getTransactions, getDashboard } = useTransactionStore();
 
     // UI & Modal States
@@ -73,7 +72,6 @@ export const BudgetItemList: React.FC<Props> = ({ budgetId }) => {
         if (isSearching) setSearchQuery("");
     };
 
-    // 🔹 Enhanced Log Spent Handler
     const handleLogSpent = async (val: number) => {
         if (!selectedItem) return;
 

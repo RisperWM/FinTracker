@@ -7,19 +7,19 @@ const API_URL = "http://192.168.0.24:5000";
 export type Transaction = {
     _id: string;
     userId: string;
-    type: "income" | "expense" | "transfer"; // 🔹 Added transfer
+    type: "income" | "expense" | "transfer";
     category: string;
     amount: number;
     description?: string;
     date: string;
     goalId?: string;
-    currentBalance?: number; // 🔹 Added currentBalance snapshot from backend
+    currentBalance?: number;
 };
 
 type Dashboard = {
     totalIncome: number;
     totalExpense: number;
-    totalTransfer: number; // 🔹 Added
+    totalTransfer: number;
     balance: number;
     transactions: Transaction[];
 };
@@ -89,7 +89,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             // 🔹 Update state with new transaction and the new balance returned by backend
             set((state) => ({
                 transactions: [json.transaction, ...state.transactions],
-                totalBalance: json.currentBalance, // 🔹 Immediate update from creation response
+                totalBalance: json.currentBalance,
                 loading: false,
             }));
 
@@ -125,7 +125,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
                 loading: false,
             }));
 
-            // 🔹 Refresh total balance after update
             get().getTotalBalance();
             return true;
         } catch (err: any) {
@@ -154,7 +153,6 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
                 loading: false,
             }));
 
-            // 🔹 Refresh total balance after delete
             get().getTotalBalance();
             return true;
         } catch (err: any) {
@@ -186,7 +184,7 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
 
             set({
                 transactions: json.transactions,
-                totalBalance: json.globalBalance, // 🔹 Store the global balance returned here
+                totalBalance: json.globalBalance,
                 loading: false
             });
         } catch (err: any) {

@@ -11,7 +11,7 @@ const calculateBalanceAtPoint = async (userId: string, date: Date) => {
         {
             $match: {
                 userId: userId,
-                date: { $lte: date } // Only sum transactions up to this point
+                date: { $lte: date }
             }
         },
         {
