@@ -10,15 +10,17 @@
     "newArchEnabled": true,
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.anonymous.FinTracker"
+      "bundleIdentifier": "com.risperwm.fintracker",
+      "icon": "./assets/images/icon.png"
     },
     "android": {
+      "package": "com.risperwm.fintracker",
       "adaptiveIcon": {
-        "backgroundColor": "#0e0057"
+        "foregroundImage": "./assets/images/icon.png",
+        "backgroundColor": "#fff"
       },
       "edgeToEdgeEnabled": true,
-      "predictiveBackGestureEnabled": false,
-      "package": "com.anonymous.FinTracker"
+      "backgroundColor": "#fff"
     },
     "web": {
       "output": "static",
@@ -30,20 +32,18 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/fintracker.png",
-          "resizeMode": "contain",
-          "backgroundColor": "#0e0057",
+          "resizeMode": "cover", 
+          "backgroundColor": "#fff",
+          "enableFullScreenImage_legacy": true,
           "dark": {
-            "backgroundColor": "#0e0057"
+            "image": "./assets/images/fintracker.png",
+            "backgroundColor": "#fff"
           }
         }
       ],
       "expo-web-browser",
       "expo-secure-store",
       "@react-native-community/datetimepicker"
-    ],
-    "experiments": {
-      "typedRoutes": true,
-      "reactCompiler": true
-    }
+    ]
   }
 }
