@@ -9,13 +9,13 @@ import {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 const firebaseConfig = {
-    apiKey: "AIzaSyAA5Dy-qs_GwCSMaTPNWmyuu1SAdmA9cKk",
-    authDomain: "fintracker-88ba5.firebaseapp.com",
-    projectId: "fintracker-88ba5",
-    storageBucket: "fintracker-88ba5.firebasestorage.app",
-    messagingSenderId: "759272994615",
-    appId: "1:759272994615:web:ed4e460f41c220577eccb2",
-    measurementId: "G-59R29LTE86"
+    apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY,
+    authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN,
+    projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID,
+    storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET,
+    messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
+    appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID,
+    measurementId: process.env.EXPO_PUBLIC_FIREBASE_MEASUREMENT_ID
 };
 
 
