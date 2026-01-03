@@ -6,36 +6,34 @@ interface DepositModalProps {
     amount: string;
     setAmount: React.Dispatch<React.SetStateAction<string>>;
     onClose: () => void;
-    onDeposit: () => Promise<void> | void;
+    onConfirm: () => Promise<void> | void; // Renamed for clarity
     type: "deposit" | "withdraw";
     goalType?: "saving" | "loan" | "debt";
 }
 
 export const DepositModal: React.FC<DepositModalProps> = ({
-    visible, amount, setAmount, onClose, onDeposit, type, goalType
+    visible, amount, setAmount, onClose, onConfirm, type, goalType
 }) => {
-    // 🔹 Track local loading state to disable button
     const [isSubmitting, setIsSubmitting] = useState(false);
 
+    // Dynamic Title Logic
     let titleText = "";
     if (type === "deposit") {
-        titleText = goalType === "saving" ? "Deposit to Savings" : "Submit Repayment";
+        if (goalType === "saving") titleText = "Deposit to Savings";
+        else if (goalType === "loan") titleText = "Receive Repayment";
+        else titleText = "Submit Repayment";
     } else {
-        titleText = goalType === "saving" ? "Withdraw Funds" : "Increase Borrowing";
+        titleText = "Withdraw Funds";
     }
 
-    const btnColor = type === "deposit" ? "#2e7d32" : "#f59e0b";
+    const btnColor = type === "deposit" ? "#2e7d32" : "#ef4444";
 
-    // 🔹 Wrapper to handle button disabling
-    const handleConfirm = async () => {
+    const handleConfirmAction = async () => {
         if (!amount || parseFloat(amount) <= 0 || isSubmitting) return;
-
         setIsSubmitting(true);
         try {
-            await onDeposit();
+            await onConfirm();
         } finally {
-            // We set this back so that if the modal stays open (on error), 
-            // the button becomes clickable again.
             setIsSubmitting(false);
         }
     };
@@ -46,7 +44,6 @@ export const DepositModal: React.FC<DepositModalProps> = ({
             animationType="slide"
             transparent
             onRequestClose={onClose}
-            // Reset submitting state when modal is hidden
             onShow={() => setIsSubmitting(false)}
         >
             <View style={styles.modalOverlay}>
@@ -54,11 +51,12 @@ export const DepositModal: React.FC<DepositModalProps> = ({
                     <Text style={styles.modalTitle}>{titleText}</Text>
                     <TextInput
                         style={styles.input}
-                        placeholder="0.00"
+                        placeholder="Amount (KES)"
                         keyboardType="numeric"
                         value={amount}
                         onChangeText={setAmount}
-                        editable={!isSubmitting} // Disable input while submitting
+                        editable={!isSubmitting}
+                        autoFocus
                     />
                     <View style={styles.modalButtons}>
                         <TouchableOpacity
@@ -74,8 +72,8 @@ export const DepositModal: React.FC<DepositModalProps> = ({
                                 styles.modalBtn,
                                 { backgroundColor: isSubmitting ? "#94a3b8" : btnColor }
                             ]}
-                            onPress={handleConfirm}
-                            disabled={isSubmitting} // 🔹 Disable button here
+                            onPress={handleConfirmAction}
+                            disabled={isSubmitting}
                         >
                             {isSubmitting ? (
                                 <ActivityIndicator color="#fff" size="small" />
@@ -92,10 +90,10 @@ export const DepositModal: React.FC<DepositModalProps> = ({
 
 const styles = StyleSheet.create({
     modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.4)", justifyContent: "center", alignItems: "center" },
-    depositModal: { backgroundColor: "#fff", padding: 20, borderRadius: 15, width: "85%" },
-    modalTitle: { fontSize: 16, fontWeight: "800", marginBottom: 15, color: "#0e0057" },
-    input: { borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 10, padding: 12, marginBottom: 20, fontSize: 16 },
-    modalButtons: { flexDirection: "row", justifyContent: "space-between", gap: 10 },
-    modalBtn: { flex: 1, padding: 14, borderRadius: 10, justifyContent: 'center', alignItems: 'center', minHeight: 50 },
-    modalBtnText: { textAlign: "center", color: "#fff", fontWeight: "700" },
+    depositModal: { backgroundColor: "#fff", padding: 25, borderRadius: 20, width: "85%" },
+    modalTitle: { fontSize: 18, fontWeight: "800", marginBottom: 20, color: "#0e0057", textAlign: 'center' },
+    input: { borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 12, padding: 15, marginBottom: 25, fontSize: 18, fontWeight: '700', textAlign: 'center' },
+    modalButtons: { flexDirection: "row", justifyContent: "space-between", gap: 12 },
+    modalBtn: { flex: 1, padding: 16, borderRadius: 12, justifyContent: 'center', alignItems: 'center' },
+    modalBtnText: { color: "#fff", fontWeight: "800", fontSize: 14 },
 });

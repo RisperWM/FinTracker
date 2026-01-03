@@ -11,16 +11,14 @@ const SavingCard = ({ item, onAction }: any) => {
     const progress = Math.min(current / target, 1);
     const isCompleted = progress >= 1;
 
-    // Check if it's a liability (repayment logic)
     const isLiability = item.type === "loan" || item.type === "debt";
 
     const statusColor = isCompleted ? "#2e7d32" : "#0e0057";
     const statusBg = isCompleted ? "#e8f5e9" : "#e8eaf6";
 
-    // Dynamic Labels
-    const depositLabel = isLiability ? "Repay" : "Deposit";
-    const withdrawLabel = isLiability ? "Borrow" : "Withdraw";
-    const totalLabel = isLiability ? "Borrowed" : "Goal";
+    // Dynamic Labels for clarity based on wallet impact
+    const depositLabel = item.type === "loan" ? "Rec. Pay" : item.type === "debt" ? "Pay Back" : "Deposit";
+    const totalLabel = item.type === "loan" ? "Lent" : item.type === "debt" ? "Borrowed" : "Goal";
 
     return (
         <View style={styles.card}>
@@ -40,7 +38,7 @@ const SavingCard = ({ item, onAction }: any) => {
             <View style={styles.progressContainer}>
                 <Progress.Bar
                     progress={progress}
-                    width={cardWidth - 36}
+                    width={cardWidth - 25}
                     height={6}
                     color={isCompleted ? "#2e7d32" : "#f59e0b"}
                     unfilledColor="#f1f5f9"
@@ -62,12 +60,14 @@ const SavingCard = ({ item, onAction }: any) => {
                     <Text style={styles.depositText}>{depositLabel}</Text>
                 </TouchableOpacity>
 
-                <TouchableOpacity
-                    style={[styles.actionBtn, styles.withdrawBtn]}
-                    onPress={() => onAction(item._id, "withdraw")}
-                >
-                    <Text style={styles.withdrawText}>{withdrawLabel}</Text>
-                </TouchableOpacity>
+                {!isLiability && (
+                    <TouchableOpacity
+                        style={[styles.actionBtn, styles.withdrawBtn]}
+                        onPress={() => onAction(item._id, "withdraw")}
+                    >
+                        <Text style={styles.withdrawText}>Withdraw</Text>
+                    </TouchableOpacity>
+                )}
             </View>
         </View>
     );
@@ -75,24 +75,24 @@ const SavingCard = ({ item, onAction }: any) => {
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: "#fff", borderRadius: 10, padding: 10, width: cardWidth,
-        borderWidth: 1, borderColor: "#f1f5f9", elevation: 3,
+        backgroundColor: "#fff", borderRadius: 12, padding: 12, width: cardWidth,
+        borderWidth: 1, borderColor: "#f1f5f9", elevation: 2,
     },
     topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
     statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-    statusText: { fontSize: 8, fontWeight: "900" },
+    statusText: { fontSize: 9, fontWeight: "900" },
     percentage: { fontSize: 12, fontWeight: "800" },
     cardTitle: { fontSize: 14, fontWeight: "700", color: "#0e0057", marginBottom: 8 },
     progressContainer: { marginBottom: 10 },
     amountInfo: { marginBottom: 12 },
-    currentAmount: { fontSize: 12, fontWeight: "900", color: "#0e0057" },
+    currentAmount: { fontSize: 13, fontWeight: "900", color: "#0e0057" },
     targetAmount: { fontSize: 10, color: "#94a3b8", marginTop: 2 },
     btnRow: { flexDirection: "row", gap: 8 },
-    actionBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: "center" },
-    depositBtn: { backgroundColor: "#2e7d32" },
-    withdrawBtn: { backgroundColor: "#f59e0b" },
-    depositText: { color: "#fff", fontSize: 10, fontWeight: "700" },
-    withdrawText: { color: "#fff", fontSize: 10, fontWeight: "700" }
+    actionBtn: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: "center" },
+    depositBtn: { backgroundColor: "#0e0057" },
+    withdrawBtn: { backgroundColor: "#ef4444" },
+    depositText: { color: "#fff", fontSize: 11, fontWeight: "700" },
+    withdrawText: { color: "#fff", fontSize: 11, fontWeight: "700" }
 });
 
 export default SavingCard;

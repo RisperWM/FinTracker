@@ -29,7 +29,7 @@ const Savings = () => {
     const router = useRouter();
     const {
         savings,
-        fetchAllGoals, // 🔹 Fetches everything (Saving, Loan, Debt)
+        fetchAllGoals,
         createSaving,
         depositToSaving,
         withdrawFromSaving,
@@ -45,19 +45,21 @@ const Savings = () => {
     const [depositType, setDepositType] = useState<"deposit" | "withdraw">("deposit");
     const [depositAmount, setDepositAmount] = useState<string>("");
 
-    // 🔹 Initial load: Fetch everything unless a filter is applied elsewhere
     useEffect(() => {
         fetchAllGoals();
-        getDashboard(new Date().getMonth() + 1, new Date().getFullYear());
-        getTransactions();
     }, []);
 
     const handleCreateSaving = useCallback(
         async (newGoal: any) => {
             try {
-                await createSaving(newGoal);
-                // Refresh list to include the new item immediately
-                fetchAllGoals();
+                const success = await createSaving(newGoal);
+                if (success) {
+                    setModalVisible(false);
+                    // Refresh everything because creation impacts wallet
+                    fetchAllGoals();
+                    getDashboard(new Date().getMonth() + 1, new Date().getFullYear());
+                    getTransactions();
+                }
             } catch (err: any) {
                 console.error("Creation Error", err.message);
             }
@@ -72,7 +74,6 @@ const Savings = () => {
 
         try {
             if (depositType === "deposit") {
-                // Backend handles specific logic for Savings vs Loans
                 await depositToSaving(selectedItem._id, amount);
             } else {
                 await withdrawFromSaving(selectedItem._id, amount);
@@ -80,7 +81,7 @@ const Savings = () => {
             setDepositModalVisible(false);
             setDepositAmount("");
 
-            // Refresh local data to show updated progress and transactions
+            // Global refresh
             fetchAllGoals();
             getDashboard(new Date().getMonth() + 1, new Date().getFullYear());
             getTransactions();
@@ -95,7 +96,6 @@ const Savings = () => {
         setDepositModalVisible(true);
     };
 
-    // Logic: show 3 items, then append the "View All" trigger card
     const dataForList = savings.length > 3
         ? [...savings.slice(0, 3), { _id: 'view_all_trigger' }]
         : savings;
@@ -107,7 +107,7 @@ const Savings = () => {
                 actionLabel={savings.length === 0 ? "Add New" : "View All"}
                 onAction={() => {
                     if (savings.length === 0) setModalVisible(true);
-                    else router.push("/savings"); // Navigate to full management page
+                    else router.push("/savings");
                 }}
             />
 
@@ -133,7 +133,6 @@ const Savings = () => {
                             </TouchableOpacity>
                         );
                     }
-                    // Pass the whole item so we can access item.type in the card
                     return <SavingCard item={item} onAction={(id: string, type: any) => openDepositModal(item, type)} />;
                 }}
                 ListEmptyComponent={() =>
@@ -152,9 +151,9 @@ const Savings = () => {
                 amount={depositAmount}
                 setAmount={setDepositAmount}
                 onClose={() => setDepositModalVisible(false)}
-                onDeposit={handleDepositWithdraw}
+                onConfirm={handleDepositWithdraw}
                 type={depositType}
-                goalType={selectedItem?.type} // "saving", "loan", or "debt"
+                goalType={selectedItem?.type}
             />
         </View>
     );
@@ -166,24 +165,12 @@ const styles = StyleSheet.create({
     title: { fontSize: 18, fontWeight: "800", color: "#0e0057" },
     link: { fontSize: 13, color: "#10b981", fontWeight: "700" },
     horizontalList: { paddingBottom: 10, gap: 12 },
-
     viewAllCard: {
-        width: 120,
-        height: 160,
-        backgroundColor: "#fff",
-        borderRadius: 14,
-        justifyContent: "center",
-        alignItems: "center",
-        borderWidth: 1,
-        borderColor: "#e2e8f0",
-        borderStyle: 'dashed'
+        width: 120, height: 160, backgroundColor: "#fff", borderRadius: 14,
+        justifyContent: "center", alignItems: "center", borderWidth: 1,
+        borderColor: "#e2e8f0", borderStyle: 'dashed'
     },
-    viewAllCardText: {
-        marginTop: 8,
-        fontSize: 14,
-        fontWeight: "700",
-        color: "#0e0057"
-    },
+    viewAllCardText: { marginTop: 8, fontSize: 14, fontWeight: "700", color: "#0e0057" },
     empty: { textAlign: "center", color: "#94a3b8", fontSize: 13, marginTop: 10, width: 300 },
 });
 

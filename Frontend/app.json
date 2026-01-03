@@ -32,7 +32,7 @@
         "expo-splash-screen",
         {
           "image": "./assets/images/fintracker.png",
-          "resizeMode": "cover", 
+          "resizeMode": "cover",
           "backgroundColor": "#fff",
           "enableFullScreenImage_legacy": true,
           "dark": {
@@ -44,6 +44,12 @@
       "expo-web-browser",
       "expo-secure-store",
       "@react-native-community/datetimepicker"
-    ]
+    ],
+    "extra": {
+      "router": {},
+      "eas": {
+        "projectId": "e7be9a42-df10-41ff-8a4d-8ec134bc93af"
+      }
+    }
   }
 }

@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from "react";
-import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator } from "react-native";
+import { Modal, View, Text, TextInput, TouchableOpacity, StyleSheet, ActivityIndicator, Alert } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import { Ionicons } from '@expo/vector-icons';
 
 interface Props {
     visible: boolean;
     onClose: () => void;
-    onSave: (goalData: any) => Promise<void> | void;
-    initialData?: any; // 🔹 Passed from SavingsScreen for editing
-    isEditing?: boolean; // 🔹 To toggle UI text
+    onSave: (goalData: any) => Promise<boolean | void>; // Updated to match store return type
+    initialData?: any;
+    isEditing?: boolean;
 }
 
 const CreateSavingModal: React.FC<Props> = ({ visible, onClose, onSave, initialData, isEditing }) => {
@@ -23,7 +23,6 @@ const CreateSavingModal: React.FC<Props> = ({ visible, onClose, onSave, initialD
     const [showStartPicker, setShowStartPicker] = useState(false);
     const [showEndPicker, setShowEndPicker] = useState(false);
 
-    // 🔹 Populate fields when initialData changes (Editing mode)
     useEffect(() => {
         if (visible) {
             if (initialData && isEditing) {
@@ -34,7 +33,6 @@ const CreateSavingModal: React.FC<Props> = ({ visible, onClose, onSave, initialD
                 setStartDate(initialData.startDate ? new Date(initialData.startDate) : new Date());
                 setEndDate(initialData.endDate ? new Date(initialData.endDate) : new Date());
             } else {
-                // Reset fields for New Goal
                 setTitle("");
                 setTargetAmount("");
                 setDescription("");
@@ -46,26 +44,38 @@ const CreateSavingModal: React.FC<Props> = ({ visible, onClose, onSave, initialD
     }, [visible, initialData, isEditing]);
 
     const handleSave = async () => {
-        if (!title || !targetAmount || loading) return;
+        if (!title.trim()) return Alert.alert("Required", "Please enter a title.");
+        if (!targetAmount || Number(targetAmount) <= 0) return Alert.alert("Required", "Please enter a valid target amount.");
+        if (endDate < startDate) return Alert.alert("Invalid Date", "Deadline cannot be before the start date.");
 
         setLoading(true);
         try {
-            await onSave({
-                title,
+            const success = await onSave({
+                title: title.trim(),
                 type,
                 targetAmount: Number(targetAmount),
-                description: description || null,
-                startDate,
-                endDate,
-                // Only include default values if creating new
+                description: description.trim() || null,
+                startDate: startDate.toISOString(),
+                endDate: endDate.toISOString(),
                 ...(!isEditing && { currentAmount: 0, status: "active" })
             });
-            onClose();
+
+            // Only close if the save was successful
+            if (success !== false) {
+                onClose();
+            }
         } catch (error) {
             console.error("Save error:", error);
         } finally {
             setLoading(false);
         }
+    };
+
+    // Helper to get descriptive text based on type
+    const getHelpText = () => {
+        if (type === 'loan') return "Lending money will immediately deduct from your wallet.";
+        if (type === 'debt') return "Borrowing will immediately increase your wallet balance.";
+        return "Savings goals track your progress as you deposit money.";
     };
 
     return (
@@ -97,9 +107,11 @@ const CreateSavingModal: React.FC<Props> = ({ visible, onClose, onSave, initialD
                         ))}
                     </View>
 
+                    <Text style={styles.helpText}>{getHelpText()}</Text>
+
                     <Text style={styles.label}>IDENTITY & TARGET</Text>
                     <TextInput
-                        placeholder="Goal or Creditor Title"
+                        placeholder={type === 'saving' ? "e.g. New Car" : "e.g. Loan to John"}
                         value={title}
                         onChangeText={setTitle}
                         style={styles.input}
@@ -135,17 +147,27 @@ const CreateSavingModal: React.FC<Props> = ({ visible, onClose, onSave, initialD
                     </View>
 
                     {showStartPicker && (
-                        <DateTimePicker value={startDate} mode="date" onChange={(_, d) => { setShowStartPicker(false); if (d) setStartDate(d); }} />
+                        <DateTimePicker
+                            value={startDate}
+                            mode="date"
+                            onChange={(_, d) => { setShowStartPicker(false); if (d) setStartDate(d); }}
+                        />
                     )}
                     {showEndPicker && (
-                        <DateTimePicker value={endDate} mode="date" onChange={(_, d) => { setShowEndPicker(false); if (d) setEndDate(d); }} />
+                        <DateTimePicker
+                            value={endDate}
+                            mode="date"
+                            minimumDate={startDate}
+                            onChange={(_, d) => { setShowEndPicker(false); if (d) setEndDate(d); }}
+                        />
                     )}
 
                     <TextInput
                         placeholder="Optional Note"
                         value={description}
                         onChangeText={setDescription}
-                        style={styles.input}
+                        style={[styles.input, { height: 80, textAlignVertical: 'top' }]}
+                        multiline
                         editable={!loading}
                     />
 
@@ -158,7 +180,7 @@ const CreateSavingModal: React.FC<Props> = ({ visible, onClose, onSave, initialD
                             <ActivityIndicator color="#fff" />
                         ) : (
                             <Text style={styles.saveText}>
-                                {isEditing ? "Update Plan" : "Initialize Plan"}
+                                {isEditing ? "Update Strategy" : "Initialize Strategy"}
                             </Text>
                         )}
                     </TouchableOpacity>
@@ -169,22 +191,23 @@ const CreateSavingModal: React.FC<Props> = ({ visible, onClose, onSave, initialD
 };
 
 const styles = StyleSheet.create({
-    modalContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(14, 0, 87, 0.4)" },
-    modalContent: { width: "90%", backgroundColor: "#fff", borderRadius: 20, padding: 20 },
+    modalContainer: { flex: 1, justifyContent: "center", alignItems: "center", backgroundColor: "rgba(14, 0, 87, 0.6)" },
+    modalContent: { width: "92%", backgroundColor: "#fff", borderRadius: 24, padding: 24, shadowColor: "#000", shadowOpacity: 0.2, shadowRadius: 10, elevation: 5 },
     titleContainer: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 20 },
-    modalTitle: { fontSize: 18, fontWeight: "900", color: "#0e0057" },
-    label: { fontSize: 10, fontWeight: "800", color: "#94a3b8", marginBottom: 8, letterSpacing: 1 },
-    typeRow: { flexDirection: 'row', gap: 8, marginBottom: 15 },
-    typeBtn: { flex: 1, padding: 10, borderRadius: 10, borderWidth: 1, borderColor: '#e2e8f0', alignItems: 'center' },
+    modalTitle: { fontSize: 20, fontWeight: "900", color: "#0e0057" },
+    label: { fontSize: 10, fontWeight: "800", color: "#94a3b8", marginBottom: 8, letterSpacing: 1.2 },
+    helpText: { fontSize: 11, color: "#64748b", marginBottom: 15, fontStyle: 'italic' },
+    typeRow: { flexDirection: 'row', gap: 8, marginBottom: 10 },
+    typeBtn: { flex: 1, padding: 12, borderRadius: 12, borderWidth: 1, borderColor: '#e2e8f0', alignItems: 'center' },
     typeBtnActive: { backgroundColor: '#0e0057', borderColor: '#0e0057' },
-    typeBtnText: { fontSize: 10, fontWeight: '800', color: '#64748b' },
-    input: { borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 12, padding: 12, marginBottom: 12, backgroundColor: "#f8fafc" },
-    dateRow: { flexDirection: 'row', gap: 10, marginBottom: 12 },
-    dateBtn: { borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 12, padding: 10, backgroundColor: "#f8fafc" },
-    dateLabel: { fontSize: 9, color: '#94a3b8', fontWeight: '700', marginBottom: 2 },
-    dateText: { color: "#1e293b", fontWeight: "600", fontSize: 13 },
-    saveBtn: { backgroundColor: "#0e0057", padding: 16, borderRadius: 15, marginTop: 10, height: 55, justifyContent: 'center' },
-    saveText: { color: "#fff", textAlign: "center", fontWeight: "800", fontSize: 15 },
+    typeBtnText: { fontSize: 11, fontWeight: '800', color: '#64748b' },
+    input: { borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 14, padding: 14, marginBottom: 14, backgroundColor: "#f8fafc", color: "#0e0057", fontWeight: "600" },
+    dateRow: { flexDirection: 'row', gap: 12, marginBottom: 14 },
+    dateBtn: { borderWidth: 1, borderColor: "#e2e8f0", borderRadius: 14, padding: 12, backgroundColor: "#f8fafc" },
+    dateLabel: { fontSize: 10, color: '#94a3b8', fontWeight: '800', marginBottom: 4 },
+    dateText: { color: "#0e0057", fontWeight: "700", fontSize: 14 },
+    saveBtn: { backgroundColor: "#0e0057", padding: 18, borderRadius: 16, marginTop: 10, shadowColor: "#0e0057", shadowOpacity: 0.3, shadowRadius: 5, elevation: 3 },
+    saveText: { color: "#fff", textAlign: "center", fontWeight: "900", fontSize: 16, letterSpacing: 0.5 },
 });
 
 export default CreateSavingModal;
