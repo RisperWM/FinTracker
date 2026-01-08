@@ -12,6 +12,7 @@ const createSaving = async (req: any, res: any) => {
     try {
         const userId = req.user.uid;
         const { title, description, targetAmount, type, startDate, endDate, interestRate } = req.body;
+        console.log('body=', req.body)
 
         const record = await Saving.create({
             userId, title, description, type, targetAmount,
@@ -19,11 +20,11 @@ const createSaving = async (req: any, res: any) => {
             interestRate: interestRate || 0,
             startDate, endDate, status: "active",
         });
-
+        console.log('savings type=', type)
         // Auto-log transaction for Loans and Debts
         if (type === "loan" || type === "debt") {
             const isLoan = type === "loan";
-            await Transaction.create({
+            const transaction=await Transaction.create({
                 userId,
                 type: "transfer",
                 amount: targetAmount,
@@ -35,7 +36,9 @@ const createSaving = async (req: any, res: any) => {
                 goalId: record._id,
                 date: new Date(),
             });
+            console.log("log transaction=", transaction)
         }
+        
 
         res.status(201).json({ success: true, data: record });
     } catch (err: any) {
@@ -54,6 +57,7 @@ const depositToSaving = async (req: any, res: any) => {
         const { amount } = req.body;
         const userId = req.user.uid;
         const record = await Saving.findById(req.params.id);
+        console.log('req.body =',req.body)
 
         if (!record) return res.status(404).json({ success: false, message: "Record not found" });
         if (!amount || amount <= 0) return res.status(400).json({ success: false, message: "Invalid amount" });

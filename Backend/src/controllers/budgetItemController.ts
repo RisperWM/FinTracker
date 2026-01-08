@@ -57,6 +57,7 @@ const updateBudgetItem = async (req: any, res: any) => {
         const userId = req.user?.uid;
         const { id } = req.params;
         const updates = req.body;
+        console.log('budget updated')
 
         const oldItem = await BudgetItem.findById(id);
         if (!oldItem) return res.status(404).json({ success: false, message: "Item not found" });

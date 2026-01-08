@@ -4,54 +4,40 @@ const {
     createSaving,
     depositToSaving,
     withdrawFromSaving,
-    deleteSaving,
-    updateSaving,
-    getSavings,      // Fetches "saving" type
-    getLoans,        // Fetches "loan" type 🔹 Added
-    getDebts,        // Fetches "debt" type 🔹 Added
+    getSavings,
     getSavingById,
+    updateSaving,
+    deleteSaving
 } = require("../controllers/savingController");
 const { authenticate } = require("../middleware/authMiddleware");
 
-// --- 🔹 CORE CRUD ---
+// 1. Diagnostics (Fixed syntax: used /(.*) instead of *)
+// If you hit /api/savings/deposit/test and see this message, the routing is fine.
+router.get("/test", (req: any, res: any) => {
+    res.send("Savings route file is reachable.");
+});
+console.log('savings route')
+router.use((req:any, res:any, next:any) => {
+    console.log(`Savings Router hit: ${req.method} ${req.url}`);
+    next();
+});
 
-// @route   POST /api/savings
-// @desc    Create a plan (Saving, Loan, or Debt based on 'type' in body)
-router.post("/", authenticate, createSaving);
+// 2. Authentication
+router.use(authenticate);
 
-// @route   GET /api/savings
-// @desc    Get all savings for logged-in user
-router.get("/", authenticate, getSavings);
+// 3. 🔹 SPECIFIC ACTION ROUTES (MUST BE AT THE TOP)
+// These handle /api/savings/deposit/:id
+router.post("/deposit/:id", depositToSaving);
+router.post("/withdraw/:id", withdrawFromSaving);
 
-// @route   GET /api/savings/loans
-// @desc    Get all loans for logged-in user 🔹 Added
-router.get("/loans", authenticate, getLoans);
+// 4. 🔹 BASE ROUTES
+router.post("/", createSaving);
+router.get("/", getSavings);
 
-// @route   GET /api/savings/debts
-// @desc    Get all debts for logged-in user 🔹 Added
-router.get("/debts", authenticate, getDebts);
-
-// @route   GET /api/savings/:id
-// @desc    Get a single record by ID
-router.get("/:id", authenticate, getSavingById);
-
-// @route   PUT /api/savings/:id
-// @desc    Update a record
-router.put("/:id", authenticate, updateSaving);
-
-// @route   DELETE /api/savings/:id
-// @desc    Delete a record
-router.delete("/:id", authenticate, deleteSaving);
-
-
-// --- 🔹 MONEY FLOW ---
-
-// @route   POST /api/savings/:id/deposit
-// @desc    Deposit / Repayment / Debt Clearing
-router.post("/:id/deposit", authenticate, depositToSaving);
-
-// @route   POST /api/savings/:id/withdraw
-// @desc    Withdraw / Re-borrowing / Adjustment
-router.post("/:id/withdraw", authenticate, withdrawFromSaving);
+// 5. 🔹 GENERIC ID ROUTES (MUST BE AT THE BOTTOM)
+// If these are above deposit/:id, they will steal the request!
+router.get("/:id", getSavingById);
+router.put("/:id", updateSaving);
+router.delete("/:id", deleteSaving);
 
 module.exports = router;
