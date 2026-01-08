@@ -80,7 +80,6 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         } catch (err: any) {
             clearTimeout(wakeUpTimer);
             set({ error: err.message, loading: false, isWakingUp: false });
-            console.log(err)
         }
     },
 
@@ -127,9 +126,6 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
             const baseUrl = API_URL.endsWith('/') ? API_URL.slice(0, -1) : API_URL;
             const url = `${baseUrl}/api/savings/deposit/${id}`;
 
-            console.log("🚀 Sending Deposit to:", url);
-            console.log('headers =', headers)
-
             const res = await fetch(url, {
                 method: "POST",
                 headers,
@@ -138,7 +134,6 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
 
             if (!res.ok) {
         const errorBody = await res.text(); 
-        console.log("❌ Server Error Body:", errorBody);
         throw new Error(`Server returned ${res.status}`);
     }
 
@@ -151,7 +146,6 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
             }));
         } catch (err: any) {
             set({ error: err.message, loading: false });
-            console.log("Deposit Error:", err.message);
         }
     },
 
@@ -179,7 +173,6 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
             }));
         } catch (err: any) {
             set({ error: err.message, loading: false });
-            console.log("Withdrawal Error:", err.message);
         }
     },
 
@@ -197,7 +190,6 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
             }));
         } catch (err: any) {
             set({ error: err.message });
-            console.log('update saving error', err)
         }
     },
 
