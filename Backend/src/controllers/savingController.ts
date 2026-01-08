@@ -2,17 +2,12 @@ const Saving = require("../models/Savings");
 const Transaction = require("../models/Transaction");
 const mongoose = require("mongoose");
 
-/**
- * 🔹 CREATE RECORD
- * Lending (Loan) -> Wallet DECREASE (-)
- * Borrowing (Debt) -> Wallet INCREASE (+)
- * Saving -> No immediate wallet impact (happens on first deposit)
- */
+
+
 const createSaving = async (req: any, res: any) => {
     try {
         const userId = req.user.uid;
         const { title, description, targetAmount, type, startDate, endDate, interestRate } = req.body;
-        console.log('body=', req.body)
 
         const record = await Saving.create({
             userId, title, description, type, targetAmount,
@@ -20,25 +15,23 @@ const createSaving = async (req: any, res: any) => {
             interestRate: interestRate || 0,
             startDate, endDate, status: "active",
         });
-        console.log('savings type=', type)
-        // Auto-log transaction for Loans and Debts
+
         if (type === "loan" || type === "debt") {
             const isLoan = type === "loan";
-            const transaction=await Transaction.create({
+
+            await Transaction.create({
                 userId,
                 type: "transfer",
-                amount: targetAmount,
+                // LOAN: Money leaves wallet (-) | DEBT: Money enters wallet (+)
+                amount: isLoan ? -targetAmount : targetAmount,
                 category: isLoan ? "Loan Given" : "Debt Taken",
-                // "back to balance" triggers (+) logic in frontend for Debts
                 description: isLoan
                     ? `Lent money for: ${title}`
                     : `Borrowed money for: ${title} back to balance`,
                 goalId: record._id,
                 date: new Date(),
             });
-            console.log("log transaction=", transaction)
         }
-        
 
         res.status(201).json({ success: true, data: record });
     } catch (err: any) {
@@ -47,17 +40,13 @@ const createSaving = async (req: any, res: any) => {
 };
 
 /**
- * 🔹 UNIVERSAL DEPOSIT (Adding money to a record)
- * Savings Deposit -> Wallet DECREASE (-)
- * Loan Repayment (Receiving money you lent) -> Wallet INCREASE (+)
- * Debt Repayment (Paying back money you borrowed) -> Wallet DECREASE (-)
+ * 🔹 UNIVERSAL DEPOSIT
  */
 const depositToSaving = async (req: any, res: any) => {
     try {
         const { amount } = req.body;
         const userId = req.user.uid;
         const record = await Saving.findById(req.params.id);
-        console.log('req.body =',req.body)
 
         if (!record) return res.status(404).json({ success: false, message: "Record not found" });
         if (!amount || amount <= 0) return res.status(400).json({ success: false, message: "Invalid amount" });
@@ -66,51 +55,52 @@ const depositToSaving = async (req: any, res: any) => {
         let transferAmount = amount;
         let extraAmount = 0;
 
-        // Logic for overflow (Interest/Profit)
         if (amount > remainingPrincipal && (record.type === "loan" || record.type === "debt")) {
             transferAmount = remainingPrincipal;
             extraAmount = amount - remainingPrincipal;
         }
 
-        // 1. Update Goal Amount
         record.currentAmount += transferAmount;
-        if (record.currentAmount >= record.targetAmount) {
-            record.status = "completed";
-        }
+        if (record.currentAmount >= record.targetAmount) record.status = "completed";
         await record.save();
 
-        // 2. Log Wallet Transaction based on Type
+        // --- 🔹 OPTION B: DIRECTIONAL LOGIC ---
         let walletDescription = "";
+        let walletImpactAmount = 0;
+
         if (record.type === "loan") {
-            // Money coming back to you
+            // Repayment of money you lent -> Enters wallet (+)
             walletDescription = `Repayment received for ${record.title} back to balance`;
+            walletImpactAmount = transferAmount;
         } else if (record.type === "debt") {
-            // Money leaving you to pay a debt
+            // Paying back money you borrowed -> Leaves wallet (-)
             walletDescription = `Debt repayment for ${record.title}`;
+            walletImpactAmount = -transferAmount;
         } else {
-            // Money leaving you to go to savings
+            // Depositing into your own savings -> Leaves wallet (-)
             walletDescription = `Deposit to savings: ${record.title}`;
+            walletImpactAmount = -transferAmount;
         }
 
         await Transaction.create({
             userId,
             type: "transfer",
-            amount: transferAmount,
+            amount: walletImpactAmount,
             category: record.type === "saving" ? "Savings" : "Debt Repayment",
             description: walletDescription,
             goalId: record._id,
             date: new Date(),
         });
 
-        // 3. Log Interest (Extra) if applicable
         if (extraAmount > 0) {
-            const extraType = record.type === "debt" ? "expense" : "income";
+            // Debt interest is an expense (-), Loan interest is income (+)
+            const isExpense = record.type === "debt";
             await Transaction.create({
                 userId,
-                type: extraType,
-                amount: extraAmount,
+                type: isExpense ? "expense" : "income",
+                amount: isExpense ? -extraAmount : extraAmount,
                 category: "Interest",
-                description: record.type === "debt"
+                description: isExpense
                     ? `Interest paid on ${record.title}`
                     : `Interest received from ${record.title} back to balance`,
                 goalId: record._id,
@@ -125,9 +115,7 @@ const depositToSaving = async (req: any, res: any) => {
 };
 
 /**
- * 🔹 UNIVERSAL WITHDRAW (Moving money back to wallet)
- * Only allowed for 'saving' type.
- * Savings Withdraw -> Wallet INCREASE (+)
+ * 🔹 UNIVERSAL WITHDRAW
  */
 const withdrawFromSaving = async (req: any, res: any) => {
     try {
@@ -135,11 +123,8 @@ const withdrawFromSaving = async (req: any, res: any) => {
         const userId = req.user.uid;
         const record = await Saving.findById(req.params.id);
 
-        if (!record) return res.status(404).json({ success: false, message: "Not found" });
-
-        // Guard: You don't "withdraw" from a loan you gave or a debt you owe.
-        if (record.type !== "saving") {
-            return res.status(400).json({ success: false, message: "Direct withdrawal only allowed for Savings" });
+        if (!record || record.type !== "saving") {
+            return res.status(400).json({ success: false, message: "Invalid withdrawal" });
         }
 
         if (amount > record.currentAmount) {
@@ -152,9 +137,9 @@ const withdrawFromSaving = async (req: any, res: any) => {
         await Transaction.create({
             userId,
             type: "transfer",
-            amount,
+            amount: amount, // Money enters wallet (+)
             category: "Goal Withdrawal",
-            description: `Withdrawal from ${record.title} back to balance`, // INFLOW (+)
+            description: `Withdrawal from ${record.title} back to balance`,
             goalId: record._id,
             date: new Date(),
         });
@@ -164,6 +149,169 @@ const withdrawFromSaving = async (req: any, res: any) => {
         res.status(500).json({ success: false, message: err.message });
     }
 };
+
+/**
+ * 🔹 CREATE RECORD
+ * Lending (Loan) -> Wallet DECREASE (-)
+ * Borrowing (Debt) -> Wallet INCREASE (+)
+ * Saving -> No immediate wallet impact (happens on first deposit)
+ */
+// const createSaving = async (req: any, res: any) => {
+//     try {
+//         const userId = req.user.uid;
+//         const { title, description, targetAmount, type, startDate, endDate, interestRate } = req.body;
+//         console.log('body=', req.body)
+
+//         const record = await Saving.create({
+//             userId, title, description, type, targetAmount,
+//             currentAmount: 0,
+//             interestRate: interestRate || 0,
+//             startDate, endDate, status: "active",
+//         });
+//         console.log('savings type=', type)
+//         // Auto-log transaction for Loans and Debts
+//         if (type === "loan" || type === "debt") {
+//             const isLoan = type === "loan";
+//             const transaction=await Transaction.create({
+//                 userId,
+//                 type: "transfer",
+//                 amount: targetAmount,
+//                 category: isLoan ? "Loan Given" : "Debt Taken",
+//                 // "back to balance" triggers (+) logic in frontend for Debts
+//                 description: isLoan
+//                     ? `Lent money for: ${title}`
+//                     : `Borrowed money for: ${title} back to balance`,
+//                 goalId: record._id,
+//                 date: new Date(),
+//             });
+//             console.log("log transaction=", transaction)
+//         }
+        
+
+//         res.status(201).json({ success: true, data: record });
+//     } catch (err: any) {
+//         res.status(500).json({ success: false, message: err.message });
+//     }
+// };
+
+// /**
+//  * 🔹 UNIVERSAL DEPOSIT (Adding money to a record)
+//  * Savings Deposit -> Wallet DECREASE (-)
+//  * Loan Repayment (Receiving money you lent) -> Wallet INCREASE (+)
+//  * Debt Repayment (Paying back money you borrowed) -> Wallet DECREASE (-)
+//  */
+// const depositToSaving = async (req: any, res: any) => {
+//     try {
+//         const { amount } = req.body;
+//         const userId = req.user.uid;
+//         const record = await Saving.findById(req.params.id);
+//         console.log('req.body =',req.body)
+
+//         if (!record) return res.status(404).json({ success: false, message: "Record not found" });
+//         if (!amount || amount <= 0) return res.status(400).json({ success: false, message: "Invalid amount" });
+
+//         const remainingPrincipal = record.targetAmount - record.currentAmount;
+//         let transferAmount = amount;
+//         let extraAmount = 0;
+
+//         // Logic for overflow (Interest/Profit)
+//         if (amount > remainingPrincipal && (record.type === "loan" || record.type === "debt")) {
+//             transferAmount = remainingPrincipal;
+//             extraAmount = amount - remainingPrincipal;
+//         }
+
+//         // 1. Update Goal Amount
+//         record.currentAmount += transferAmount;
+//         if (record.currentAmount >= record.targetAmount) {
+//             record.status = "completed";
+//         }
+//         await record.save();
+
+//         // 2. Log Wallet Transaction based on Type
+//         let walletDescription = "";
+//         if (record.type === "loan") {
+//             // Money coming back to you
+//             walletDescription = `Repayment received for ${record.title} back to balance`;
+//         } else if (record.type === "debt") {
+//             // Money leaving you to pay a debt
+//             walletDescription = `Debt repayment for ${record.title}`;
+//         } else {
+//             // Money leaving you to go to savings
+//             walletDescription = `Deposit to savings: ${record.title}`;
+//         }
+
+//         await Transaction.create({
+//             userId,
+//             type: "transfer",
+//             amount: transferAmount,
+//             category: record.type === "saving" ? "Savings" : "Debt Repayment",
+//             description: walletDescription,
+//             goalId: record._id,
+//             date: new Date(),
+//         });
+
+//         // 3. Log Interest (Extra) if applicable
+//         if (extraAmount > 0) {
+//             const extraType = record.type === "debt" ? "expense" : "income";
+//             await Transaction.create({
+//                 userId,
+//                 type: extraType,
+//                 amount: extraAmount,
+//                 category: "Interest",
+//                 description: record.type === "debt"
+//                     ? `Interest paid on ${record.title}`
+//                     : `Interest received from ${record.title} back to balance`,
+//                 goalId: record._id,
+//                 date: new Date(),
+//             });
+//         }
+
+//         res.json({ success: true, data: record });
+//     } catch (err: any) {
+//         res.status(500).json({ success: false, message: err.message });
+//     }
+// };
+
+// /**
+//  * 🔹 UNIVERSAL WITHDRAW (Moving money back to wallet)
+//  * Only allowed for 'saving' type.
+//  * Savings Withdraw -> Wallet INCREASE (+)
+//  */
+// const withdrawFromSaving = async (req: any, res: any) => {
+//     try {
+//         const { amount } = req.body;
+//         const userId = req.user.uid;
+//         const record = await Saving.findById(req.params.id);
+
+//         if (!record) return res.status(404).json({ success: false, message: "Not found" });
+
+//         // Guard: You don't "withdraw" from a loan you gave or a debt you owe.
+//         if (record.type !== "saving") {
+//             return res.status(400).json({ success: false, message: "Direct withdrawal only allowed for Savings" });
+//         }
+
+//         if (amount > record.currentAmount) {
+//             return res.status(400).json({ success: false, message: "Insufficient savings" });
+//         }
+
+//         record.currentAmount -= amount;
+//         await record.save();
+
+//         await Transaction.create({
+//             userId,
+//             type: "transfer",
+//             amount,
+//             category: "Goal Withdrawal",
+//             description: `Withdrawal from ${record.title} back to balance`, // INFLOW (+)
+//             goalId: record._id,
+//             date: new Date(),
+//         });
+
+//         res.json({ success: true, data: record });
+//     } catch (err: any) {
+//         res.status(500).json({ success: false, message: err.message });
+//     }
+// };
 
 /**
  * 🔹 FETCHERS
