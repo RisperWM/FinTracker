@@ -4,6 +4,12 @@ const mongoose = require("mongoose");
 
 
 
+/**
+ * 🔹 CREATE RECORD
+ * Logic:
+ * - Loan Given: You give money away -> Wallet Outflow (-)
+ * - Debt Taken: You receive borrowed money -> Wallet Inflow (+)
+ */
 const createSaving = async (req: any, res: any) => {
     try {
         const userId = req.user.uid;
@@ -22,12 +28,12 @@ const createSaving = async (req: any, res: any) => {
             await Transaction.create({
                 userId,
                 type: "transfer",
-                // LOAN: Money leaves wallet (-) | DEBT: Money enters wallet (+)
+                // 🔹 LOAN: -Amount (Deducts from balance) | DEBT: +Amount (Adds to balance)
                 amount: isLoan ? -targetAmount : targetAmount,
                 category: isLoan ? "Loan Given" : "Debt Taken",
                 description: isLoan
                     ? `Lent money for: ${title}`
-                    : `Borrowed money for: ${title} back to balance`,
+                    : `Borrowed money for: ${title} received into balance`,
                 goalId: record._id,
                 date: new Date(),
             });
@@ -41,6 +47,10 @@ const createSaving = async (req: any, res: any) => {
 
 /**
  * 🔹 UNIVERSAL DEPOSIT
+ * Logic:
+ * - Savings: Wallet Outflow (-)
+ * - Loan Repayment: You receive money back -> Wallet Inflow (+)
+ * - Debt Repayment: You pay money back -> Wallet Outflow (-)
  */
 const depositToSaving = async (req: any, res: any) => {
     try {
@@ -55,6 +65,7 @@ const depositToSaving = async (req: any, res: any) => {
         let transferAmount = amount;
         let extraAmount = 0;
 
+        // Interest handling
         if (amount > remainingPrincipal && (record.type === "loan" || record.type === "debt")) {
             transferAmount = remainingPrincipal;
             extraAmount = amount - remainingPrincipal;
@@ -64,20 +75,20 @@ const depositToSaving = async (req: any, res: any) => {
         if (record.currentAmount >= record.targetAmount) record.status = "completed";
         await record.save();
 
-        // --- 🔹 OPTION B: DIRECTIONAL LOGIC ---
+        // 🔹 Wallet Impact Logic
         let walletDescription = "";
         let walletImpactAmount = 0;
 
         if (record.type === "loan") {
-            // Repayment of money you lent -> Enters wallet (+)
-            walletDescription = `Repayment received for ${record.title} back to balance`;
+            // Repayment received -> Adds to balance (+)
+            walletDescription = `Loan repayment received for ${record.title}`;
             walletImpactAmount = transferAmount;
         } else if (record.type === "debt") {
-            // Paying back money you borrowed -> Leaves wallet (-)
+            // Paying back debt -> Deducts from balance (-)
             walletDescription = `Debt repayment for ${record.title}`;
             walletImpactAmount = -transferAmount;
         } else {
-            // Depositing into your own savings -> Leaves wallet (-)
+            // Saving money -> Deducts from balance (-)
             walletDescription = `Deposit to savings: ${record.title}`;
             walletImpactAmount = -transferAmount;
         }
@@ -92,17 +103,19 @@ const depositToSaving = async (req: any, res: any) => {
             date: new Date(),
         });
 
+        // 🔹 Extra Interest Logic
         if (extraAmount > 0) {
-            // Debt interest is an expense (-), Loan interest is income (+)
-            const isExpense = record.type === "debt";
+            const isDebt = record.type === "debt";
             await Transaction.create({
                 userId,
-                type: isExpense ? "expense" : "income",
-                amount: isExpense ? -extraAmount : extraAmount,
+                // Interest paid on debt is an expense (-)
+                // Interest received on loan is income (+)
+                type: isDebt ? "expense" : "income",
+                amount: isDebt ? -extraAmount : extraAmount,
                 category: "Interest",
-                description: isExpense
-                    ? `Interest paid on ${record.title}`
-                    : `Interest received from ${record.title} back to balance`,
+                description: isDebt
+                    ? `Interest paid on debt: ${record.title}`
+                    : `Interest earned from loan: ${record.title}`,
                 goalId: record._id,
                 date: new Date(),
             });
