@@ -9,23 +9,20 @@ const SavingCard = ({ item, onAction }: any) => {
     const current = item.currentAmount || 0;
     const target = item.targetAmount || 1;
     const progress = Math.min(current / target, 1);
-    const isCompleted = progress >= 1;
+    const isCompleted = item.status === "completed";
 
-    const isLiability = item.type === "loan" || item.type === "debt";
+    const statusColor = isCompleted ? "#166534" : "#0e0057";
+    const statusBg = isCompleted ? "#dcfce7" : "#e8eaf6";
 
-    const statusColor = isCompleted ? "#2e7d32" : "#0e0057";
-    const statusBg = isCompleted ? "#e8f5e9" : "#e8eaf6";
-
-    // Dynamic Labels for clarity based on wallet impact
     const depositLabel = item.type === "loan" ? "Rec. Pay" : item.type === "debt" ? "Pay Back" : "Deposit";
     const totalLabel = item.type === "loan" ? "Lent" : item.type === "debt" ? "Borrowed" : "Goal";
 
     return (
-        <View style={styles.card}>
+        <View style={[styles.card, isCompleted && styles.completedBorder]}>
             <View style={styles.topRow}>
                 <View style={[styles.statusBadge, { backgroundColor: statusBg }]}>
                     <Text style={[styles.statusText, { color: statusColor }]}>
-                        {item.type?.toUpperCase()}
+                        {isCompleted ? "COMPLETED" : item.type?.toUpperCase()}
                     </Text>
                 </View>
                 <Text style={[styles.percentage, { color: isCompleted ? "#2e7d32" : "#f59e0b" }]}>
@@ -52,36 +49,43 @@ const SavingCard = ({ item, onAction }: any) => {
                 <Text style={styles.targetAmount}>{totalLabel}: {target.toLocaleString()}</Text>
             </View>
 
-            <View style={styles.btnRow}>
-                <TouchableOpacity
-                    style={[styles.actionBtn, styles.depositBtn]}
-                    onPress={() => onAction(item._id, "deposit")}
-                >
-                    <Text style={styles.depositText}>{depositLabel}</Text>
-                </TouchableOpacity>
-
-                {!isLiability && (
+            {/* 🔹 Only show action buttons if NOT completed */}
+            {!isCompleted && (
+                <View style={styles.btnRow}>
                     <TouchableOpacity
-                        style={[styles.actionBtn, styles.withdrawBtn]}
-                        onPress={() => onAction(item._id, "withdraw")}
+                        style={[styles.actionBtn, styles.depositBtn]}
+                        onPress={() => onAction(item._id, "deposit")}
                     >
-                        <Text style={styles.withdrawText}>Withdraw</Text>
+                        <Text style={styles.depositText}>{depositLabel}</Text>
                     </TouchableOpacity>
-                )}
-            </View>
+
+                    {item.type === "saving" && (
+                        <TouchableOpacity
+                            style={[styles.actionBtn, styles.withdrawBtn]}
+                            onPress={() => onAction(item._id, "withdraw")}
+                        >
+                            <Text style={styles.withdrawText}>Withdraw</Text>
+                        </TouchableOpacity>
+                    )}
+                </View>
+            )}
         </View>
     );
 };
 
 const styles = StyleSheet.create({
     card: {
-        backgroundColor: "#fff", borderRadius: 12, padding: 12, width: cardWidth,
+        backgroundColor: "#fff", borderRadius: 14, padding: 12, width: cardWidth,
         borderWidth: 1, borderColor: "#f1f5f9", elevation: 2,
     },
+    completedBorder: {
+        borderColor: "#dcfce7",
+        backgroundColor: "#fcfdfc"
+    },
     topRow: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 10 },
-    statusBadge: { paddingHorizontal: 8, paddingVertical: 3, borderRadius: 6 },
-    statusText: { fontSize: 9, fontWeight: "900" },
-    percentage: { fontSize: 12, fontWeight: "800" },
+    statusBadge: { paddingHorizontal: 8, paddingVertical: 4, borderRadius: 6 },
+    statusText: { fontSize: 8, fontWeight: "900" },
+    percentage: { fontSize: 11, fontWeight: "800" },
     cardTitle: { fontSize: 14, fontWeight: "700", color: "#0e0057", marginBottom: 8 },
     progressContainer: { marginBottom: 10 },
     amountInfo: { marginBottom: 12 },
@@ -91,8 +95,8 @@ const styles = StyleSheet.create({
     actionBtn: { flex: 1, paddingVertical: 10, borderRadius: 8, alignItems: "center" },
     depositBtn: { backgroundColor: "#0e0057" },
     withdrawBtn: { backgroundColor: "#ef4444" },
-    depositText: { color: "#fff", fontSize: 11, fontWeight: "700" },
-    withdrawText: { color: "#fff", fontSize: 11, fontWeight: "700" }
+    depositText: { color: "#fff", fontSize: 10, fontWeight: "700" },
+    withdrawText: { color: "#fff", fontSize: 10, fontWeight: "700" }
 });
 
 export default SavingCard;

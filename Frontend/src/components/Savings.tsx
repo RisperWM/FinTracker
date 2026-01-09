@@ -55,7 +55,6 @@ const Savings = () => {
                 const success = await createSaving(newGoal);
                 if (success) {
                     setModalVisible(false);
-                    // Refresh everything because creation impacts wallet
                     fetchAllGoals();
                     getDashboard(new Date().getMonth() + 1, new Date().getFullYear());
                     getTransactions();
@@ -81,7 +80,6 @@ const Savings = () => {
             setDepositModalVisible(false);
             setDepositAmount("");
 
-            // Global refresh
             fetchAllGoals();
             getDashboard(new Date().getMonth() + 1, new Date().getFullYear());
             getTransactions();
@@ -96,22 +94,25 @@ const Savings = () => {
         setDepositModalVisible(true);
     };
 
-    const dataForList = savings.length > 3
-        ? [...savings.slice(0, 3), { _id: 'view_all_trigger' }]
-        : savings;
+    // 🔹 Filter to show ONLY active items on the dashboard
+    const activeSavings = savings.filter(item => item.status !== "completed");
+
+    const dataForList = activeSavings.length > 3
+        ? [...activeSavings.slice(0, 3), { _id: 'view_all_trigger' }]
+        : activeSavings;
 
     return (
         <View style={styles.container}>
             <SectionHeader
                 title="Financial Goals & Debts"
-                actionLabel={savings.length === 0 ? "Add New" : "View All"}
+                actionLabel={activeSavings.length === 0 ? "Add New" : "View All"}
                 onAction={() => {
-                    if (savings.length === 0) setModalVisible(true);
+                    if (activeSavings.length === 0) setModalVisible(true);
                     else router.push("/savings");
                 }}
             />
 
-            {loading && savings.length === 0 && (
+            {loading && activeSavings.length === 0 && (
                 <ActivityIndicator size="small" color="#0e0057" style={{ marginVertical: 20 }} />
             )}
 

@@ -15,8 +15,7 @@ export interface Saving {
     currentAmount: number;
     startDate: Date;
     endDate?: Date;
-    status: string;
-    createdAt: string;
+    status: "active" | "completed";
     updatedAt: string;
 }
 
@@ -38,6 +37,7 @@ interface SavingsState {
     getSavingById: (id: string) => Saving | undefined;
     createSaving: (savingData: Partial<Saving>) => Promise<boolean>;
     updateSaving: (id: string, savingData: Partial<Saving>) => Promise<void>;
+    updateStatus: (id: string, status: "active" | "completed") => Promise<void>;
     deleteSaving: (id: string) => Promise<void>;
 
     depositToSaving: (id: string, amount: number) => Promise<void>;
@@ -191,6 +191,15 @@ export const useSavingsStore = create<SavingsState>((set, get) => ({
         } catch (err: any) {
             set({ error: err.message });
         }
+    },
+
+    updateStatus: async (id, status) => {
+        await fetch(`${API_URL}api/savings/${id}`, {
+            method: "PUT",
+            headers: await getAuthHeaders(),
+            body: JSON.stringify({ status }),
+        });
+        get().fetchAllGoals();
     },
 
     deleteSaving: async (id) => {
