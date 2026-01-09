@@ -1,10 +1,9 @@
 const Transaction = require("../models/Transaction");
+const Saving = require("../models/Savings"); // 🔹 Added import to query loan/debt goals
 const mongoose = require("mongoose");
 
 /**
  * Helper: Calculates the balance for a user up to a specific date.
- * This ensures that if you backdate a transaction, the "currentBalance" 
- * snapshot remains logically consistent for that date.
  */
 const calculateBalanceAtPoint = async (userId: string, date: Date) => {
     const stats = await Transaction.aggregate([
@@ -28,13 +27,42 @@ const calculateBalanceAtPoint = async (userId: string, date: Date) => {
     return (stats[0].income + stats[0].transfer) - stats[0].expense;
 };
 
+// --- 🔹 NEW: GET LOAN AMOUNT ---
+const getLoanAmount = async (req: any, res: any) => {
+    try {
+        const { userId } = req.query;
+        // Summing the remaining principal on all active loans given
+        const loans = await Saving.find({ userId, type: "loan", status: "active" });
+        const totalLoan = loans.reduce((sum: number, loan: any) =>
+            sum + (loan.targetAmount - loan.currentAmount), 0);
+
+        res.status(200).json({ success: true, amount: totalLoan });
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
+// --- 🔹 NEW: GET DEBT AMOUNT ---
+const getDebtAmount = async (req: any, res: any) => {
+    try {
+        const { userId } = req.query;
+        // Summing the remaining principal on all active debts taken
+        const debts = await Saving.find({ userId, type: "debt", status: "active" });
+        const totalDebt = debts.reduce((sum: number, debt: any) =>
+            sum + (debt.targetAmount - debt.currentAmount), 0);
+
+        res.status(200).json({ success: true, amount: totalDebt });
+    } catch (err: any) {
+        res.status(500).json({ success: false, message: err.message });
+    }
+};
+
 // --- ADD TRANSACTION ---
 const addTransaction = async (req: any, res: any) => {
     try {
         const { userId, type, category, amount, description, date, goalId, referenceId } = req.body;
         const transactionDate = date ? new Date(date) : new Date();
 
-        // 1. Create and Save the transaction
         const transaction = new Transaction({
             userId,
             type,
@@ -48,10 +76,7 @@ const addTransaction = async (req: any, res: any) => {
 
         await transaction.save();
 
-        // 2. Calculate what the balance became AFTER this specific entry
         const balanceSnapshot = await calculateBalanceAtPoint(userId, transactionDate);
-
-        // 3. Update the document with its snapshot
         transaction.currentBalance = balanceSnapshot;
         await transaction.save();
 
@@ -78,8 +103,6 @@ const getTransactions = async (req: any, res: any) => {
         }
 
         const transactions = await Transaction.find(filter).sort({ date: -1 });
-
-        // Return the absolute latest balance as well
         const globalBalance = await calculateBalanceAtPoint(userId as string, new Date());
 
         res.status(200).json({
@@ -155,7 +178,6 @@ const updateTransaction = async (req: any, res: any) => {
         const transaction = await Transaction.findByIdAndUpdate(id, updates, { new: true });
         if (!transaction) return res.status(404).json({ success: false, message: "Not found" });
 
-        // Refresh the snapshot for this transaction
         const newSnapshot = await calculateBalanceAtPoint(transaction.userId, transaction.date);
         transaction.currentBalance = newSnapshot;
         await transaction.save();
@@ -186,4 +208,6 @@ module.exports = {
     updateTransaction,
     deleteTransaction,
     getTotalBalance,
+    getLoanAmount,   // 🔹 Exported
+    getDebtAmount    // 🔹 Exported
 };

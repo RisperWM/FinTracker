@@ -28,6 +28,8 @@ type TransactionState = {
     transactions: Transaction[];
     dashboard: Dashboard | null;
     totalBalance: number;
+    totalLoans: number;  // 🔹 Added
+    totalDebts: number;  // 🔹 Added
     loading: boolean;
     error: string | null;
     addTransaction: (data: Omit<Transaction, "_id" | "userId">) => Promise<boolean>;
@@ -36,12 +38,16 @@ type TransactionState = {
     getTransactions: (month?: number, year?: number) => Promise<void>;
     getDashboard: (month: number, year: number) => Promise<void>;
     getTotalBalance: () => Promise<void>;
+    getLoanAmount: () => Promise<void>; // 🔹 Added
+    getDebtAmount: () => Promise<void>; // 🔹 Added
 };
 
 export const useTransactionStore = create<TransactionState>((set, get) => ({
     transactions: [],
     dashboard: null,
     totalBalance: 0,
+    totalLoans: 0,
+    totalDebts: 0,
     loading: false,
     error: null,
 
@@ -61,8 +67,50 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             if (res.ok) {
                 set({ totalBalance: json.balance });
             }
+
+            // 🔹 Refresh exposure totals whenever balance is checked
+            get().getLoanAmount();
+            get().getDebtAmount();
         } catch (err) {
             console.error("Error fetching total balance:", err);
+        }
+    },
+
+    // --- GET LOAN AMOUNT ---
+    getLoanAmount: async () => {
+        try {
+            const currentUser = auth.currentUser;
+            if (!currentUser) return;
+            const token = await getIdToken(currentUser);
+
+            const res = await fetch(`${API_URL}api/transaction/loans?userId=${currentUser.uid}`, {
+                method: "GET",
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            const json = await res.json();
+            if (res.ok) set({ totalLoans: json.amount });
+        } catch (err) {
+            console.error("Error fetching loans:", err);
+        }
+    },
+
+    // --- GET DEBT AMOUNT ---
+    getDebtAmount: async () => {
+        try {
+            const currentUser = auth.currentUser;
+            if (!currentUser) return;
+            const token = await getIdToken(currentUser);
+
+            const res = await fetch(`${API_URL}api/transaction/debts?userId=${currentUser.uid}`, {
+                method: "GET",
+                headers: { Authorization: `Bearer ${token}` },
+            });
+
+            const json = await res.json();
+            if (res.ok) set({ totalDebts: json.amount });
+        } catch (err) {
+            console.error("Error fetching debts:", err);
         }
     },
 
@@ -86,12 +134,15 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             const json = await res.json();
             if (!res.ok) throw new Error(json.message || "Failed to add");
 
-            // 🔹 Update state with new transaction and the new balance returned by backend
             set((state) => ({
                 transactions: [json.transaction, ...state.transactions],
                 totalBalance: json.currentBalance,
                 loading: false,
             }));
+
+            // Refresh exposure logic
+            get().getLoanAmount();
+            get().getDebtAmount();
 
             return true;
         } catch (err: any) {
@@ -187,6 +238,9 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
                 totalBalance: json.globalBalance,
                 loading: false
             });
+
+            get().getLoanAmount();
+            get().getDebtAmount();
         } catch (err: any) {
             set({ error: err.message, loading: false });
         }
@@ -212,6 +266,9 @@ export const useTransactionStore = create<TransactionState>((set, get) => ({
             if (!res.ok) throw new Error(json.message || "Failed to fetch dashboard");
 
             set({ dashboard: json, loading: false });
+
+            get().getLoanAmount();
+            get().getDebtAmount();
         } catch (err: any) {
             set({ error: err.message, loading: false });
         }
