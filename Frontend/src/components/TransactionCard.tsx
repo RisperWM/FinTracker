@@ -13,16 +13,16 @@ interface TransactionCardProps {
 }
 
 const TransactionCard = ({ item, onPress, onLongPress, isSelected, selectionMode, style }: TransactionCardProps) => {
-    const isIncome = item.type === "income";
-    const isTransfer = item.type === "transfer";
-    const isExpense = item.type === "expense";
+    const amountValue = Number(item.amount);
 
-    const isPositiveTransfer = isTransfer && item.description?.toLowerCase().includes("back to");
+    // 🔹 Logic: Is this an inflow (adding to wallet) or outflow (leaving wallet)?
+    // In Option B, positive numbers increase balance, negative numbers decrease it.
+    const isPositive = amountValue > 0;
 
-    // 🔹 Select Theme Colors & Icons
+    // 🔹 Select Theme Colors & Icons based on the category type
     const getTheme = () => {
-        if (isIncome) return { color: "#2e7d32", bg: "#e8f5e9", icon: "arrow-up" };
-        if (isTransfer) return { color: "#0284c7", bg: "#e0f2fe", icon: "swap-horizontal" };
+        if (item.type === "income") return { color: "#2e7d32", bg: "#e8f5e9", icon: "arrow-up" };
+        if (item.type === "transfer") return { color: "#0284c7", bg: "#e0f2fe", icon: "swap-horizontal" };
         return { color: "#c62828", bg: "#ffebee", icon: "arrow-down" };
     };
 
@@ -60,8 +60,9 @@ const TransactionCard = ({ item, onPress, onLongPress, isSelected, selectionMode
             </View>
 
             <View style={styles.rightSide}>
-                <Text style={[styles.amount, { color: (isIncome || isPositiveTransfer) ? "#2e7d32" : "#c62828" }]}>
-                    {(isIncome || isPositiveTransfer) ? "+" : "-"} {Number(item.amount).toLocaleString()}
+                <Text style={[styles.amount, { color: isPositive ? "#2e7d32" : "#c62828" }]}>
+                    {/* 🔹 Only add a '+' for positive. Negatives already have a '-' from the DB */}
+                    {isPositive ? "+ " : ""}{amountValue.toLocaleString()}
                 </Text>
 
                 <View style={styles.metaRow}>

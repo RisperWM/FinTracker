@@ -78,12 +78,15 @@ export const AddTransactionPopup: React.FC<Props> = ({ visible, onClose, initial
                     <Text style={styles.label}>Category</Text>
                     <View style={styles.pickerWrapper}>
                         <Picker selectedValue={category} onValueChange={(v) => setCategory(v)}>
-                            <Picker.Item label="Select..." value="" />
+                            <Picker.Item label="Select..." value="" style={{color:'#000000'}}/>
                             {(type === "income" ? incomeCategories : expenseCategories).map(cat => (
                                 <Picker.Item key={cat} label={cat} value={cat} />
                             ))}
                         </Picker>
                     </View>
+
+                    <Text style={styles.label}>Description</Text>
+                    <TextInput style={styles.input} keyboardType="default" value={description} onChangeText={setDescription} placeholder="Brief description..." />
 
                     <Text style={styles.label}>Amount (KES)</Text>
                     <TextInput style={styles.input} keyboardType="numeric" value={amount} onChangeText={setAmount} placeholder="0.00" />
@@ -115,15 +118,15 @@ const styles = StyleSheet.create({
     overlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.6)", justifyContent: "center", alignItems: "center" },
     container: { padding: 20, backgroundColor: "#fff", borderRadius: 20 },
     title: { fontSize: 20, fontWeight: "800", color: "#0e0057", marginBottom: 15, textAlign: "center" },
-    pillSwitch: { flexDirection: "row", backgroundColor: "#f1f5f9", borderRadius: 25, padding: 4, marginBottom: 20 },
+    pillSwitch: { flexDirection: "row", backgroundColor: "#f1f5f9", borderRadius: 30, padding: 4, marginBottom: 20 },
     pillButton: { flex: 1, paddingVertical: 10, alignItems: "center", borderRadius: 21 },
-    activePill: { backgroundColor: "#0e0057" },
-    pillText: { fontWeight: "700", color: "#64748b", fontSize: 12 },
-    label: { fontSize: 11, fontWeight: "700", color: "#94a3b8", marginBottom: 5, marginLeft: 5 },
+    activePill: { backgroundColor: "#0e0057", color:"#e68a13" },
+    pillText: { fontWeight: "600", color: "#64748b", fontSize: 12 },
+    label: { fontSize: 13, fontWeight: "700", color: "#0e0057", marginBottom: 3, marginLeft: 5 },
     pickerWrapper: { backgroundColor: "#f8fafc", borderRadius: 12, borderWidth: 1, borderColor: "#e2e8f0", marginBottom: 15 },
     input: { backgroundColor: "#f8fafc", borderRadius: 12, borderWidth: 1, borderColor: "#e2e8f0", padding: 12, marginBottom: 15, fontSize: 16 },
     dateButton: { backgroundColor: "#f8fafc", borderRadius: 12, borderWidth: 1, borderColor: "#e2e8f0", padding: 12, marginBottom: 15 },
-    dateText: { fontSize: 16, color: "#0e0057", fontWeight: "600" },
+    dateText: { fontSize: 13, color: "#0e0057", fontWeight: "500" },
     message: { textAlign: "center", color: "#2e7d32", marginBottom: 10, fontWeight: "600" },
     actions: { flexDirection: "row", gap: 10, marginTop: 10 },
     cancelBtn: { flex: 1, padding: 15, alignItems: "center", borderRadius: 12, backgroundColor: "#f1f5f9" },
