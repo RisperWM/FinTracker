@@ -39,7 +39,7 @@ interface HabitState {
     fetchHabits: () => Promise<void>;
     addHabit: (habitData: Partial<Habit>) => Promise<void>;
     updateHabit: (id: string, habitData: Partial<Habit>) => Promise<void>;
-    deleteHabit: (id: string) => Promise<void>;
+    deleteHabit: (id: string | string[]) => Promise<void>;   
     fetchLogs: (habitId: string) => Promise<void>;
     saveLog: (logData: HabitLog) => Promise<void>;
 }
@@ -104,13 +104,38 @@ export const useHabitStore = create<HabitState>((set, get) => ({
         }
     },
 
+    // deleteHabit: async (id) => {
+    //     try {
+    //         const config = await getAuthHeaders();
+    //         await axios.delete(`${API_URL}api/habit/${id}`, config);
+    //         set((state) => ({
+    //             habits: state.habits.filter((h) => h._id !== id),
+    //         }));
+    //     } catch (err: any) {
+    //         set({ error: err.message });
+    //     }
+    // },
+
     deleteHabit: async (id) => {
         try {
             const config = await getAuthHeaders();
-            await axios.delete(`${API_URL}api/habit/${id}`, config);
-            set((state) => ({
-                habits: state.habits.filter((h) => h._id !== id),
-            }));
+            // Check if id is an array or single string
+            if (Array.isArray(id)) {
+                // Option A: Backend does not supports batch delete
+                // await axios.delete(`${API_URL}api/habit/batch`, { ...config, data: { ids: id } });
+
+                // Option B: Loop through and delete
+                await Promise.all(id.map(singleId => axios.delete(`${API_URL}api/habit/${singleId}`, config)));
+
+                set((state) => ({
+                    habits: state.habits.filter((h) => !id.includes(h._id)),
+                }));
+            } else {
+                await axios.delete(`${API_URL}api/habit/${id}`, config);
+                set((state) => ({
+                    habits: state.habits.filter((h) => h._id !== id),
+                }));
+            }
         } catch (err: any) {
             set({ error: err.message });
         }

@@ -94,7 +94,6 @@ const Savings = () => {
         setDepositModalVisible(true);
     };
 
-    // 🔹 Filter to show ONLY active items on the dashboard
     const activeSavings = savings.filter(item => item.status !== "completed");
 
     const dataForList = activeSavings.length > 3
