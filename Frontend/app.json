@@ -17,10 +17,10 @@
       "package": "com.risperwm.fintracker",
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
-        "backgroundColor": "#fff"
+        "backgroundColor": "#FFFFFF"
       },
       "edgeToEdgeEnabled": true,
-      "backgroundColor": "#fff"
+      "backgroundColor": "#FFFFFF"
     },
     "web": {
       "output": "static",
@@ -33,11 +33,11 @@
         {
           "image": "./assets/images/fintracker.png",
           "resizeMode": "cover",
-          "backgroundColor": "#fff",
+          "backgroundColor": "#FFFFFF",
           "enableFullScreenImage_legacy": true,
           "dark": {
             "image": "./assets/images/fintracker.png",
-            "backgroundColor": "#fff"
+            "backgroundColor": "#FFFFFF"
           }
         }
       ],
@@ -50,6 +50,12 @@
       "eas": {
         "projectId": "e7be9a42-df10-41ff-8a4d-8ec134bc93af"
       }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e7be9a42-df10-41ff-8a4d-8ec134bc93af"
     }
   }
 }
